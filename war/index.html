@@ -28,7 +28,6 @@
 		 * - test=1: For developers only
 		 * - drawdev=1: For developers only
 		 * - export=URL for export: For developers only
-		 * - page=n: For developers only
 		 * - ignoremime=1: For developers only (see DriveClient.js). Use Cmd-S to override mime.
 		 * - createindex=1: For developers only (see etc/build/README)
 		 * - filesupport=0: For developers only (see Editor.js in core)
@@ -346,6 +345,7 @@
 		{
 			// Electron
 			mxscript('js/diagramly/ElectronApp.js');
+			mxscript('js/diagramly/Extensions.js');
 		}
 		
 		// Adds basic error handling
@@ -371,14 +371,14 @@
 		</p>
 		<h2 id="geStatus">Loading...</h2>
 		<p>
-			Please ensure JavaScript is enabled
+			Please ensure JavaScript is enabled.
 		</p>
 	</div>
 </div>
-<div id="geFooter" style="visibility:hidden;overflow:hidden;margin-right:170px;">
+<div id="geFooter" style="visibility:hidden;overflow:hidden;margin-right:200px;">
 	<div class="geSocialFooter" style="position:absolute;right:32px;white-space:nowrap;">
-    	<a href="https://plus.google.com/u/0/+DrawIo1/posts" title="draw.io on Google+" target="_blank">
-    		<img border="0" width="24" height="24" src="images/glyphicons_google.png" alt="draw.io on Google+"/>
+    	<a href="https://www.youtube.com/channel/UCiTtRN9b8P4CoSfpkfgEJHA" title="draw.io on Youtube" target="_blank">
+    		<img border="0" width="24" height="24" src="images/glyphicons_youtube.png" alt="draw.io on Youtube"/>
     	</a>
     	&nbsp;
     	<a href="https://www.facebook.com/pages/drawio/161015263923018" title="draw.io on Facebook" target="_blank">
@@ -389,22 +389,26 @@
     		<img border="0" width="24" height="24" src="images/glyphicons_twitter.png" alt="draw.io on Twitter"/>
     	</a>
     	&nbsp;
-    	<a href="https://github.com/jgraph/draw.io" title="draw.io on GitHub" target="_blank">
+    	<a href="https://plus.google.com/u/0/+DrawIo1/posts" title="draw.io on Google+" target="_blank">
+    		<img border="0" width="24" height="24" src="images/glyphicons_google.png" alt="draw.io on Google+"/>
+    	</a>
+    	&nbsp;
+    	<a href="https://github.com/jgraph/drawio" title="draw.io on GitHub" target="_blank">
     		<img border="0" width="24" height="24" src="images/glyphicons_github.png" alt="draw.io on GitHub"/>
     	</a>
 	</div>
 	<table align="center">
 		<tr>
-			<td id="geFooterItem2">
-				<a title="Quick Start Video" href="https://youtu.be/Z0D96ZikMkc" target="_blank">
-					<img border="0" align="absmiddle" style="margin-top:-3px;"
-						src="images/glyphicons_youtube.png"/>&nbsp;&nbsp;Quick Start Video</a>
+			<td id="geFooterItem2" align="center" style="width:246px;">
+				<a title="Quick Start Video" href="https://www.youtube.com/watch?v=Z0D96ZikMkc" target="_blank">
+					<img border="0" align="absmiddle" style="margin-top:-2px;padding-right:8px;"
+						width="26" height="26" src="images/youtube.png"/>Quick Start Video</a>
 			</td>
 			<td id="geFooterItem1">
 				<a id="geFooterLink1" title="#1 Rated Confluence Add-on" target="_blank"
 					href="https://marketplace.atlassian.com/plugins/com.mxgraph.confluence.plugins.diagramly/server/overview">
-					<img border="0" width="27" height="24" align="absmiddle" style="padding-right:16px;"
-						src="images/logo-confluence.png"/>#1 Rated Confluence Add-on
+					<img border="0" width="24" height="24" align="absmiddle" style="padding-right:10px;"
+						src="images/logo-confluence.png"/>#1 Rated Confluence App
 				</a>
 			</td>
 		</tr>

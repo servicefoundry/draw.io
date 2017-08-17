@@ -972,7 +972,7 @@ Graph.prototype.defaultThemes = {};
 /**
  * Base URL for relative links.
  */
-Graph.prototype.baseUrl = (window != window.top) ? document.referrer : document.location.toString();
+Graph.prototype.baseUrl = ((window != window.top) ? document.referrer : document.location.toString()).split('#')[0];
 
 /**
  * Installs child layout styles.
@@ -986,35 +986,48 @@ Graph.prototype.init = function(container)
 	{
 		mxCellRenderer.prototype.initializeLabel.apply(this, arguments);
 		
-		var fn = mxUtils.bind(this, function(evt)
+		// Checks tolerance for clicks on links
+		var tol = state.view.graph.tolerance;
+		var handleClick = true;
+		var first = null;
+		
+		var down = mxUtils.bind(this, function(evt)
 		{
-			var elt = mxEvent.getSource(evt)
-			
-			while (elt != null && elt != shape.node)
+			handleClick = true;
+			first = new mxPoint(mxEvent.getClientX(evt), mxEvent.getClientY(evt));
+		});
+		
+		var move = mxUtils.bind(this, function(evt)
+		{
+			handleClick = handleClick && first != null &&
+				Math.abs(first.x - mxEvent.getClientX(evt)) < tol &&
+				Math.abs(first.y - mxEvent.getClientY(evt)) < tol;
+		});
+		
+		var up = mxUtils.bind(this, function(evt)
+		{
+			if (handleClick)
 			{
-				if (elt.nodeName == 'A')
-				{
-					state.view.graph.labelLinkClicked(state, elt, evt);
-					break;
-				}
+				var elt = mxEvent.getSource(evt)
 				
-				elt = elt.parentNode;
+				while (elt != null && elt != shape.node)
+				{
+					if (elt.nodeName.toLowerCase() == 'a')
+					{
+						state.view.graph.labelLinkClicked(state, elt, evt);
+						break;
+					}
+					
+					elt = elt.parentNode;
+				}
 			}
 		});
 		
-		// Workaround for no click events on touch
-		if (mxClient.IS_TOUCH)
+		mxEvent.addGestureListeners(shape.node, down, move, up);
+		mxEvent.addListener(shape.node, 'click', function(evt)
 		{
-			mxEvent.addGestureListeners(shape.node, null, null, fn);
-			mxEvent.addListener(shape.node, 'click', function(evt)
-			{
-				mxEvent.consume(evt);
-			});
-		}
-		else
-		{
-			mxEvent.addListener(shape.node, 'click', fn);
-		}
+			mxEvent.consume(evt);
+		});
 	};
 	
 	this.initLayoutManager();
@@ -1027,7 +1040,7 @@ Graph.prototype.labelLinkClicked = function(state, elt, evt)
 {
 	var href = elt.getAttribute('href');
 	
-	if (href != null)
+	if (href != null && !this.isPageLink(href))
 	{
 		var target = state.view.graph.isBlankLink(href) ?
 			state.view.graph.linkTarget : '_top';
@@ -1040,7 +1053,17 @@ Graph.prototype.labelLinkClicked = function(state, elt, evt)
 		}
 		else
 		{
-			window.open(href, target);
+			// Avoids page reload for anchors (workaround for IE but used everywhere)
+			if (href.substring(0, this.baseUrl.length) == this.baseUrl &&
+				href.charAt(this.baseUrl.length) == '#' &&
+				target == '_top' && window == window.top)
+			{
+				window.location.hash = href.split('#')[1];
+			}
+			else
+			{
+				window.open(href, target);
+			}
 		}
 		
 		mxEvent.consume(evt);
@@ -1062,7 +1085,7 @@ Graph.prototype.initLayoutManager = function()
 		if (style['childLayout'] == 'stackLayout')
 		{
 			var stackLayout = new mxStackLayout(this.graph, true);
-			stackLayout.resizeParentMax = true;
+			stackLayout.resizeParentMax = mxUtils.getValue(style, 'resizeParentMax', '1') == '1';
 			stackLayout.horizontal = mxUtils.getValue(style, 'horizontalStack', '1') == '1';
 			stackLayout.resizeParent = mxUtils.getValue(style, 'resizeParent', '1') == '1';
 			stackLayout.resizeLast = mxUtils.getValue(style, 'resizeLast', '0') == '1';
@@ -1207,6 +1230,14 @@ Graph.prototype.isReplacePlaceholders = function(cell)
 };
 
 /**
+ * Adds Alt+click to select cells behind cells.
+ */
+Graph.prototype.isTransparentClickEvent = function(evt)
+{
+	return mxEvent.isAltDown(evt);
+};
+
+/**
  * Adds ctrl+shift+connect to disable connections.
  */
 Graph.prototype.isIgnoreTerminalEvent = function(evt)
@@ -1219,7 +1250,7 @@ Graph.prototype.isIgnoreTerminalEvent = function(evt)
  */
 Graph.prototype.isSplitTarget = function(target, cells, evt)
 {
-	return !mxEvent.isShiftDown(evt) && mxGraph.prototype.isSplitTarget.apply(this, arguments);
+	return !mxEvent.isAltDown(evt) && !mxEvent.isShiftDown(evt) && mxGraph.prototype.isSplitTarget.apply(this, arguments);
 };
 
 /**
@@ -1254,7 +1285,7 @@ Graph.prototype.isLabelMovable = function(cell)
 /**
  * Adds event if grid size is changed.
  */
-mxGraph.prototype.setGridSize = function(value)
+Graph.prototype.setGridSize = function(value)
 {
 	this.gridSize = value;
 	this.fireEvent(new mxEventObject('gridSizeChanged'));
@@ -2288,7 +2319,8 @@ Graph.prototype.getTooltipForCell = function(cell)
 		{
 			var ignored = ['label', 'tooltip', 'placeholders', 'placeholder'];
 			var attrs = cell.value.attributes;
-			
+			var temp = [];
+
 			// Hides links in edit mode
 			if (this.isEnabled())
 			{
@@ -2299,9 +2331,31 @@ Graph.prototype.getTooltipForCell = function(cell)
 			{
 				if (mxUtils.indexOf(ignored, attrs[i].nodeName) < 0 && attrs[i].nodeValue.length > 0)
 				{
-					tip += ((attrs[i].nodeName != 'link') ? attrs[i].nodeName + ':' : '') +
-						mxUtils.htmlEntities(attrs[i].nodeValue) + '\n';
+					temp.push({name: attrs[i].nodeName, value: attrs[i].nodeValue});
 				}
+			}
+			
+			// Sorts by name
+			temp.sort(function(a, b)
+			{
+				if (a.name < b.name)
+				{
+					return -1;
+				}
+				else if (a.name > b.name)
+				{
+					return 1;
+				}
+				else
+				{
+					return 0;
+				}
+			});
+
+			for (var i = 0; i < temp.length; i++)
+			{
+				tip += ((temp[i].name != 'link') ? temp[i].name + ':' : '') +
+					mxUtils.htmlEntities(temp[i].value) + '\n';
 			}
 			
 			if (tip.length > 0)
@@ -4488,19 +4542,7 @@ if (typeof mxVertexHandler != 'undefined')
 							
 							if (beforeClick != null)
 			    			{
-								// Workaround for no click events on touch
-								if (mxClient.IS_TOUCH)
-								{
-									mxEvent.addGestureListeners(links[i], null, null, beforeClick);
-									mxEvent.addListener(links[i], 'click', function(evt)
-									{
-										mxEvent.consume(evt);
-									});
-								}
-								else
-								{
-									mxEvent.addListener(links[i], 'click', beforeClick);
-								}
+								mxEvent.addGestureListeners(links[i], null, null, beforeClick);
 			    			}
 						}
 					}
@@ -4595,9 +4637,12 @@ if (typeof mxVertexHandler != 'undefined')
 			    	var source = me.getSource();
 			    	
 			    	// Ignores clicks on links and collapse/expand icon
-			    	if (source.nodeName.toLowerCase() != 'a' && !me.isConsumed() &&
+			    	if (source.nodeName.toLowerCase() != 'a' &&
+			    		(Math.abs(this.scrollLeft - graph.container.scrollLeft) < tol &&
+			        	Math.abs(this.scrollTop - graph.container.scrollTop) < tol) &&
 			    		(me.getState() == null || !me.isSource(me.getState().control)) &&
-			    		(mxEvent.isLeftMouseButton(me.getEvent()) || mxEvent.isTouchEvent(me.getEvent())))
+			    		(mxEvent.isLeftMouseButton(me.getEvent()) ||
+			    		mxEvent.isTouchEvent(me.getEvent())))
 			    	{
 				    	if (this.currentLink != null) 
 				    	{
@@ -4620,7 +4665,17 @@ if (typeof mxVertexHandler != 'undefined')
 								}
 								else
 								{
-									window.open(this.currentLink, target);
+									// Avoids page reload for anchors (workaround for IE but used everywhere)
+									if (this.currentLink.substring(0, graph.baseUrl.length) == graph.baseUrl &&
+										this.currentLink.charAt(graph.baseUrl.length) == '#' &&
+										target == '_top' && window == window.top)
+									{
+										window.location.hash = this.currentLink.split('#')[1];
+									}
+									else
+									{
+										window.open(this.currentLink, target);
+									}
 								}
 					    		
 					    		me.consume();
@@ -5988,7 +6043,7 @@ if (typeof mxVertexHandler != 'undefined')
 					var stroke = mxUtils.getValue(state.style, mxConstants.STYLE_STROKECOLOR, mxConstants.NONE);
 					var fill = mxUtils.getValue(state.style, mxConstants.STYLE_FILLCOLOR, mxConstants.NONE);
 					
-					if (mxUtils.trim(value || '') == '' && stroke == mxConstants.NONE && fill == mxConstants.NONE)
+					if (value == '' && stroke == mxConstants.NONE && fill == mxConstants.NONE)
 					{
 						this.graph.removeCells([state.cell], false);
 					}

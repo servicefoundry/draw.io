@@ -184,7 +184,7 @@ App.pluginRegistry = {'4xAKTrabTpTzahoLthkwPNUn': '/plugins/explore.js',
 	'props': '/plugins/props.js', 'text': '/plugins/text.js',
 	'anim': '/plugins/animation.js', 'update': '/plugins/update.js',
 	'trees': '/plugins/trees/trees.js', 'import': '/plugins/import.js',
-	'replay': '/plugins/replay.js'};
+	'replay': '/plugins/replay.js', 'anon': '/plugins/anonymize.js'};
 
 /**
  * Function: authorize
@@ -492,6 +492,14 @@ App.main = function(callback)
 			
 			if (temp != null)
 			{
+				// Used to request draw.io sources in dev mode
+				var drawDevUrl = '';
+
+				if (urlParams['drawdev'] == '1')
+				{
+					drawDevUrl = document.location.protocol + '//drawhost.jgraph.com/';
+				}
+				
 				// Mapping from key to URL in App.plugins
 				var t = temp.split(';');
 				
@@ -501,7 +509,7 @@ App.main = function(callback)
 					
 					if (url != null)
 					{
-						mxscript(url);
+						mxscript(drawDevUrl + url);
 					}
 					else if (window.console != null)
 					{
@@ -742,7 +750,26 @@ App.prototype.init = function()
 	 * Holds the listener for description changes.
 	 */	
 	this.descriptorChangedListener = mxUtils.bind(this, this.descriptorChanged);
-	
+
+	/**
+	 * Basic adds for all backends.
+	 */
+	this.basicAds = ['<a title="Share on Twitter" target="_blank" href="https://twitter.com/intent/tweet?text=' +
+		'www.draw.io free online diagramming' +
+		'" onclick="javascript:window.open(this.href, \'\', \'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,' +
+		'left=\'+((screen.width-640)/2)+\',top=\'+((screen.height-280)/3)+\',height=280,width=640\');return false;"\'>' +
+		'<img border="0" align="absmiddle" width="18" height="18" style="margin-top:-2px;padding-right:8px;" src="' +
+		Editor.tweetImage + '"/>Share on Twitter</a>',
+		'<a title="Share on Facebook" target="_blank" href="https://www.facebook.com/sharer.php?u=' +
+		encodeURIComponent('https://www.draw.io') +
+		'" onclick="javascript:window.open(this.href, \'\', \'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,' +
+		'left=\'+((screen.width-640)/2)+\',top=\'+((screen.height-520)/3)+\',height=520,width=640\');return false;"\'>' +
+		'<img border="0" align="absmiddle" width="18" height="18" style="margin-top:-2px;padding-right:8px;" src="' +
+		Editor.facebookImage + '"/>Share on Facebook</a>',
+		'<a title="draw.io Offline" href="https://www.draw.io/app" target="_blank">' +
+		'<img border="0" align="absmiddle" style="margin-top:-1px;padding-right:8px;" src="images/download.png"/>' +
+		'draw.io Offline</a>'];
+
 	/**
 	 * Creates github client.
 	 */
@@ -841,15 +868,11 @@ App.prototype.init = function()
 						// Changes the footer ads for Google Accounts
 						if (this.updateAd != null)
 						{
-							this.adsHtml = ['<a title="HTML5 JavaScript Diagramming" target="_blank" href="https://github.com/jgraph/draw.io">' +
-											'<img border="0" align="absmiddle" style="margin-top:-2px;padding-right:14px;" src="images/glyphicons_github.png"/>Fork us on GitHub</a>',
-											'<a title="Google Docs Add-on" href="https://chrome.google.com/webstore/detail/drawio-diagrams/clpbjldiohnnmfmkngmaohehlnfkmoea" target="_blank">' +
-											'<img border="0" align="absmiddle" style="margin-top:-4px;" src="images/glyphicons_star.png"/>&nbsp;&nbsp;Google Docs Add-on</a>',
-											'<a title="Google Chrome App" href="https://chrome.google.com/webstore/detail/drawio-desktop/pebppomjfocnoigkeepgbmcifnnlndla" target="_blank">' +
-											'<img border="0" align="absmiddle" style="margin-top:-4px;" src="images/glyphicons_star.png"/>&nbsp;&nbsp;Google Chrome App</a>',
-											'<a title="Please help us to 5 stars" href="https://chrome.google.com/webstore/detail/drawio-pro/onlkggianjhjenigcpigpjehhpplldkc/reviews" target="_blank">' +
-											'<img border="0" align="absmiddle" style="margin-top:-4px;" src="images/glyphicons_star.png"/>&nbsp;&nbsp;Please help us to 5 stars</a>'];
-							this.updateAd(this.adsHtml.length - 1);
+							this.adsHtml = this.basicAds.concat([
+								'<a title="Google Docs Add-on" href="https://chrome.google.com/webstore/detail/drawio-diagrams/clpbjldiohnnmfmkngmaohehlnfkmoea" target="_blank">' +
+								'<img border="0" align="absmiddle" style="margin-top:-4px;" src="images/glyphicons_star.png"/>&nbsp;&nbsp;Google Docs Add-on</a>',
+								'<a title="Please help us to 5 stars" href="https://chrome.google.com/webstore/detail/drawio-pro/onlkggianjhjenigcpigpjehhpplldkc/reviews" target="_blank">' +
+								'<img border="0" align="absmiddle" style="margin-top:-4px;" src="images/glyphicons_star.png"/>&nbsp;&nbsp;Please help us to 5 stars</a>']);
 						}
 						
 						this.updateUserElement();
@@ -970,52 +993,114 @@ App.prototype.init = function()
 
 	this.updateHeader();
 	
+	// Announce Desktop Apps
+	// TODO: Remove after one week
+	var td2 = document.getElementById('geFooterItem1');
+	
+	if (td2 != null)
+	{
+		var link = 'https://www.facebook.com/drawioapp/posts/1628618103829386';
+
+		if (['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K'].indexOf(navigator.platform) >= 0)
+		{
+			td2.innerHTML = '<a title="draw.io for macOS" href="' + link + '" target="_blank">' +
+				'<img border="0" align="absmiddle" style="margin-top:-4px;" width="24" height="24" src="images/drawlogo48.png"/>&nbsp;&nbsp;draw.io for macOS</a>';
+		}
+		else if (['Win32', 'Win64', 'Windows', 'WinCE'].indexOf(navigator.platform) >= 0)
+		{
+			td2.innerHTML = '<a title="draw.io for Windows" href="' + link + '" target="_blank">' +
+				'<img border="0" align="absmiddle" style="margin-top:-4px;" width="24" height="24" src="images/drawlogo48.png"/>&nbsp;&nbsp;draw.io for Windows</a>';
+		}
+		else if (/\bCrOS\b/.test(navigator.userAgent))
+		{
+			td2.innerHTML = '<a title="draw.io for Chrome OS" href="https://chrome.google.com/webstore/detail/drawio-desktop/pebppomjfocnoigkeepgbmcifnnlndla" target="_blank">' +
+				'<img border="0" align="absmiddle" style="margin-top:-4px;" width="24" height="24" src="images/drawlogo48.png"/>&nbsp;&nbsp;draw.io for Chrome OS</a>';
+		}
+		else if (/Linux/.test(navigator.platform))
+		{
+			td2.innerHTML = '<a title="draw.io for Linux" href="' + link + '" target="_blank">' +
+				'<img border="0" align="absmiddle" style="margin-top:-4px;" width="24" height="24" src="images/drawlogo48.png"/>&nbsp;&nbsp;draw.io for Linux</a>';
+		}
+		else
+		{
+			td2.innerHTML = '<a title="draw.io Desktop" href="' + link + '" target="_blank">' +
+				'<img border="0" align="absmiddle" style="margin-top:-4px;" width="24" height="24" src="images/drawlogo48.png"/>&nbsp;&nbsp;draw.io Desktop</a>';
+		}
+	}
+	
 	// Changes footer from time to time
 	var td = document.getElementById('geFooterItem2');
 	
 	if (td != null)
 	{
-		this.adsHtml = ['<a title="HTML5 JavaScript Diagramming" target="_blank" href="https://github.com/jgraph/draw.io">' +
-			'<img border="0" align="absmiddle" style="margin-top:-2px;padding-right:14px;" src="images/glyphicons_github.png"/>Fork us on GitHub</a>'];
-		this.adsHtml.push(td.innerHTML);
-		
-		mxUtils.setPrefixedStyle(td.style, 'transition', 'all 1s ease');
+		this.basicAds.push(td.innerHTML);
+		this.adsHtml = this.basicAds;
 		var lastAd = this.adsHtml.length - 1;
+		var thread2 = null;
+		var thread = null;
 		
-		this.updateAd = function(index)
+		this.updateAd = function(index, delay)
 		{
-			if (index == lastAd)
-			{
-				index = this.adsHtml.length - 1;
-			}
+			delay = (delay != null) ? delay : 1000;
+			mxUtils.setPrefixedStyle(td.style, 'transition', 'all ' + (delay / 1000) + 's ease');
 
-			if (index != lastAd)
+			if (thread2 != null)
 			{
+				window.clearTimeout(thread2);
+				thread2 = null;
+			}
+			
+			if (this.adsHtml.length == 1)
+			{
+				window.clearInterval(thread);
+			}
+			
+			if (this.adsHtml.length == 0)
+			{
+				td.style.visibility = 'hidden';
+				td.innerHTML = '';
+			}
+			else
+			{
+				td.style.visibility = 'visible';
+				
+				if (index == lastAd)
+				{
+					index++;
+				}
+
 				mxUtils.setPrefixedStyle(td.style, 'transform', 'scale(0)');
 				td.style.opacity = '0';
-				lastAd = index;
-				
+			
 				window.setTimeout(mxUtils.bind(this, function()
 				{
 					td.innerHTML = this.adsHtml[index];
 					mxUtils.setPrefixedStyle(td.style, 'transform', 'scale(1)');
 					td.style.opacity = '1';
-				}), 1000);
+					lastAd = index;
+				}), delay);
 			}
 		};
 		
-		window.setInterval(mxUtils.bind(this, function()
+		thread = window.setInterval(mxUtils.bind(this, function()
 		{
-			if (this.adsHtml.length == 3)
+			this.updateAd(Math.round(Math.random() * (this.adsHtml.length - 2)));
+		}), 180000);
+		
+		mxEvent.addListener(td, 'click', mxUtils.bind(this, function()
+		{
+			this.adsHtml.splice(lastAd, 1);
+			lastAd = null;
+			this.updateAd(0);
+		}));
+
+		if (mxSettings.getOpenCounter() > 10 && urlParams['embed'] != '1')
+		{
+			thread2 = window.setTimeout(mxUtils.bind(this, function()
 			{
-				this.updateAd(mxUtils.mod(lastAd + 1, 3));
-			}
-			else
-			{
-				var rnd = Math.random();
-				this.updateAd(Math.round(rnd * (this.adsHtml.length - 1)));
-			}
-		}), 300000);
+				this.updateAd(0);
+			}), 15000);
+		}
 	}
 	
 	if (this.menubar != null)
@@ -1354,24 +1439,31 @@ App.prototype.removeDraft = function()
  */
 App.prototype.onBeforeUnload = function()
 {
-	var file = this.getCurrentFile();
-	
-	if (file != null)
+	if (urlParams['embed'] == '1' && this.editor.modified)
 	{
-		// KNOWN: Message is ignored by most browsers
-		if (file.constructor == LocalFile && file.getHash() == '' && !file.isModified() &&
-			urlParams['nowarn'] != '1' && !this.isDiagramEmpty() && urlParams['url'] == null &&
-			!this.editor.chromeless)
+		return mxResources.get('allChangesLost');
+	}
+	else
+	{
+		var file = this.getCurrentFile();
+		
+		if (file != null)
 		{
-			return mxResources.get('ensureDataSaved');
-		}
-		else if (file.constructor != DriveFile && file.isModified())
-		{
-			return mxResources.get('allChangesLost');
-		}
-		else
-		{
-			file.close(true);
+			// KNOWN: Message is ignored by most browsers
+			if (file.constructor == LocalFile && file.getHash() == '' && !file.isModified() &&
+				urlParams['nowarn'] != '1' && !this.isDiagramEmpty() && urlParams['url'] == null &&
+				!this.editor.chromeless)
+			{
+				return mxResources.get('ensureDataSaved');
+			}
+			else if (file.constructor != DriveFile && file.isModified())
+			{
+				return mxResources.get('allChangesLost');
+			}
+			else
+			{
+				file.close(true);
+			}
 		}
 	}
 };
@@ -2297,13 +2389,14 @@ App.prototype.start = function()
  */
 App.prototype.showSplash = function(force)
 {
-	var serviceCount = this.getServiceCount(false);
+	var serviceCount = this.getServiceCount(false) + 1;
 	
 	var showSecondDialog = mxUtils.bind(this, function()
 	{
 		var dlg = new SplashDialog(this);
 		
-		this.showDialog(dlg.container, 340, (serviceCount < 2) ? 180 : 260, true, true,
+		this.showDialog(dlg.container, 340, (serviceCount < 2 ||
+			mxClient.IS_CHROMEAPP || EditorUi.isElectronApp) ? 200 : 260, true, true,
 			mxUtils.bind(this, function(cancel)
 			{
 				// Creates a blank diagram if the dialog is closed
@@ -2335,7 +2428,7 @@ App.prototype.showSplash = function(force)
 			showSecondDialog();
 		}), rowLimit);
 		
-		this.showDialog(dlg.container, (rowLimit < 3) ? 240 : 300, (serviceCount > rowLimit) ? 420 : 300, true, false);
+		this.showDialog(dlg.container, (rowLimit < 3) ? 260 : 300, (serviceCount > rowLimit) ? 420 : 300, true, false);
 		dlg.init();
 	}
 	else if (urlParams['create'] == null)

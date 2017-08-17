@@ -168,7 +168,23 @@ public class mxVsdxCodec
 					String str = out.toString(charset);
 					if (!str.isEmpty())
 					{
+						//UTF-8 BOM causes exception while parsing, so remove it
+						//TODO is the text encoding will be correct or string must be re-read as UTF-8?
+						if (str.startsWith("ï»¿")) str = str.substring(3);
+						
 						Document doc = mxXmlUtils.parseXml(str);
+						
+						if (doc == null) //An exception that is most probably due to encoding issues
+						{
+							byte[] outBytes = out.toByteArray();
+							if (outBytes[1] == 0 && outBytes[3] == 0 && outBytes[5] == 0) //UTF-16 Little Endian (has a null every other character) [Heuristic]
+							{
+								str = out.toString("UTF-16LE");
+								doc = mxXmlUtils.parseXml(str);
+							}
+							//TODO add any other non-standard encoding that may be needed 
+						}
+						
 						// Hack to be able to find the filename from an element in the XML
 						doc.setDocumentURI(filename);
 						docData.put(filename, doc);
@@ -697,13 +713,15 @@ public class mxVsdxCodec
 		if (subLabel)
 		{
 			group = (mxCell) graph.insertVertex(parent, null, null,
-					o.getX(), o.getY(), d.getX(), d.getY(), style);
+				Math.round(o.getX() * 100) / 100, Math.round(o.getY() * 100) / 100,
+				Math.round(d.getX() * 100) / 100, Math.round(d.getY() * 100) / 100, style);
 		}
 		else
 		{
 			String textLabel = shape.getTextLabel();
 			group = (mxCell) graph.insertVertex(parent, null, textLabel,
-					o.getX(), o.getY(), d.getX(), d.getY(), style);
+				Math.round(o.getX() * 100) / 100, Math.round(o.getY() * 100) / 100,
+				Math.round(d.getX() * 100) / 100, Math.round(d.getY() * 100) / 100, style);
 		}
 
 		Iterator<Map.Entry<Integer, VsdxShape>> entries = children.entrySet()
@@ -784,26 +802,10 @@ public class mxVsdxCodec
 			for (int i = 0; i < group.getChildCount(); i++)
 			{
 				mxICell child = group.getChildAt(i);
-				rotatedPoint(child.getGeometry(), rotation, hw, hh);				
+				Utils.rotatedGeometry(child.getGeometry(), rotation, hw, hh);				
 			}
 		}
 		return group;
-	}
-
-	public static void rotatedPoint(mxGeometry geo, double rotation,
-			double cx, double cy)
-	{
-		rotation = Math.toRadians(rotation);
-		double cos = Math.cos(rotation), sin = Math.sin(rotation);
-
-		double x = geo.getCenterX() - cx;
-		double y = geo.getCenterY() - cy;
-
-		double x1 = x * cos - y * sin;
-		double y1 = y * cos + x * sin;
-
-		geo.setX(Math.round(x1 + cx - geo.getWidth() / 2));
-		geo.setY(Math.round(y1 + cy - geo.getHeight() / 2));
 	}
 
 	public static void rotatedEdgePoint(mxPoint pt, double rotation,
@@ -883,14 +885,14 @@ public class mxVsdxCodec
 			if (hasSubLabel)
 			{
 				v1 = (mxCell) graph.insertVertex(parent, null, null,
-						coordinates.getX(), coordinates.getY(), dimensions.getX(),
-						dimensions.getY(), style);
+					Math.round(coordinates.getX() * 100) / 100, Math.round(coordinates.getY() * 100) / 100,
+					Math.round(dimensions.getX() * 100) / 100, Math.round(dimensions.getY() * 100) / 100, style);
 			}
 			else
 			{
 				v1 = (mxCell) graph.insertVertex(parent, null, textLabel,
-						coordinates.getX(), coordinates.getY(), dimensions.getX(),
-						dimensions.getY(), style);
+					Math.round(coordinates.getX() * 100) / 100, Math.round(coordinates.getY() * 100) / 100,
+					Math.round(dimensions.getX() * 100) / 100, Math.round(dimensions.getY() * 100) / 100, style);
 			}
 
 			vertexMap.put(new ShapePageId(pageId, shape.getId()), v1);
@@ -954,7 +956,8 @@ public class mxVsdxCodec
 		{
 			// Source is dangling
 			source = (mxCell) graph.insertVertex(parent, null, null,
-					beginXY.getX(), beginXY.getY(), 0, 0);
+				Math.round(beginXY.getX() * 100) / 100,
+				Math.round(beginXY.getY() * 100) / 100, 0, 0);
 		}
 		//Else: Routing points will contain the exit/entry points, so no need to set the to/from constraint 
 
@@ -967,7 +970,8 @@ public class mxVsdxCodec
 		{
 			// Target is dangling
 			target = (mxCell) graph.insertVertex(parent, null, null,
-					endXY.getX(), endXY.getY(), 0, 0);
+				Math.round(endXY.getX() * 100) / 100,
+				Math.round(endXY.getY() * 100) / 100, 0, 0);
 		}
 		//Else: Routing points will contain the exit/entry points, so no need to set the to/from constraint 
 

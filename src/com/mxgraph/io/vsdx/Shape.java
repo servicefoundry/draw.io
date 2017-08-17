@@ -830,7 +830,7 @@ public class Shape extends Style
 	public String getTextOpacity(String index)
 	{
 		Element colorTrans = getCellElement(mxVsdxConstants.COLOR_TRANS, index, mxVsdxConstants.CHARACTER);
-		String trans = getValue(colorTrans, "1");
+		String trans = getValue(colorTrans, "0");
 		String result = "1";
 		
 		if (trans != null && !trans.isEmpty())
@@ -854,7 +854,7 @@ public class Shape extends Style
 		Element sizeElem = getCellElement(mxVsdxConstants.SIZE, index, mxVsdxConstants.CHARACTER);
 		double size = getScreenNumericalValue(sizeElem, 12);
 		
-		return String.valueOf(size);
+		return Double.toString(Math.round(size * 100) / 100);
 	}
 	
 	/**

@@ -208,6 +208,7 @@ Format.prototype.isFillState = function(state)
 {
 	return state.view.graph.model.isVertex(state.cell) ||
 		mxUtils.getValue(state.style, mxConstants.STYLE_SHAPE, null) == 'arrow' ||
+		mxUtils.getValue(state.style, mxConstants.STYLE_SHAPE, null) == 'filledEdge' ||
 		mxUtils.getValue(state.style, mxConstants.STYLE_SHAPE, null) == 'flexArrow';
 };
 
@@ -234,7 +235,7 @@ Format.prototype.isRoundedState = function(state)
 			shape == 'parallelogram' || shape == 'swimlane' || shape == 'triangle' || shape == 'trapezoid' ||
 			shape == 'ext' || shape == 'step' || shape == 'tee' || shape == 'process' || shape == 'link' ||
 			shape == 'rhombus' || shape == 'offPageConnector' || shape == 'loopLimit' || shape == 'hexagon' ||
-			shape == 'manualInput' || shape == 'curlyBracket' || shape == 'singleArrow' ||
+			shape == 'manualInput' || shape == 'curlyBracket' || shape == 'singleArrow' || shape == 'callout' ||
 			shape == 'doubleArrow' || shape == 'flexArrow' || shape == 'card' || shape == 'umlLifeline');
 };
 
@@ -248,7 +249,7 @@ Format.prototype.isComicState = function(state)
 	return mxUtils.indexOf(['label', 'rectangle', 'internalStorage', 'corner', 'parallelogram', 'note', 'collate',
 	                        'swimlane', 'triangle', 'trapezoid', 'ext', 'step', 'tee', 'process', 'link', 'rhombus',
 	                        'offPageConnector', 'loopLimit', 'hexagon', 'manualInput', 'singleArrow', 'doubleArrow',
-	                        'flexArrow', 'card', 'umlLifeline', 'connector', 'folder', 'component', 'sortShape',
+	                        'flexArrow', 'filledEdge', 'card', 'umlLifeline', 'connector', 'folder', 'component', 'sortShape',
 	                        'cross', 'umlFrame', 'cube', 'isoCube', 'isoRectangle', 'partialRectangle'], shape) >= 0;
 };
 
@@ -3156,6 +3157,13 @@ TextFormatPanel.prototype.addFont = function(container)
 					
 					if (node != null)
 					{
+						// Workaround for commonAncestor on range in IE11 returning parent of common ancestor
+						if (node == graph.cellEditor.textarea && graph.cellEditor.textarea.children.length == 1 &&
+							graph.cellEditor.textarea.firstChild.nodeType == mxConstants.NODETYPE_ELEMENT)
+						{
+							node = graph.cellEditor.textarea.firstChild;
+						}
+						
 						var css = mxUtils.getCurrentStyle(node);
 						
 						if (css != null)
@@ -3259,6 +3267,16 @@ TextFormatPanel.prototype.addFont = function(container)
 								}
 								
 								if (ff.charAt(ff.length - 1) == '\'')
+								{
+									ff = ff.substring(0, ff.length - 1);
+								}
+
+								if (ff.charAt(0) == '"')
+								{
+									ff = ff.substring(1);
+								}
+								
+								if (ff.charAt(ff.length - 1) == '"')
 								{
 									ff = ff.substring(0, ff.length - 1);
 								}
@@ -3452,7 +3470,7 @@ StyleFormatPanel.prototype.addFill = function(container)
 		
 		var fillColor = mxUtils.getValue(ss.style, mxConstants.STYLE_FILLCOLOR, null);
 
-		if (!ss.fill || ss.containsImage || fillColor == null || fillColor == mxConstants.NONE)
+		if (!ss.fill || ss.containsImage || fillColor == null || fillColor == mxConstants.NONE || ss.style.shape == 'filledEdge')
 		{
 			gradientPanel.style.display = 'none';
 		}
@@ -3977,7 +3995,7 @@ StyleFormatPanel.prototype.addStroke = function(container)
 			altInput.value = (isNaN(tmp)) ? '' : tmp + ' pt';
 		}
 		
-		styleSelect.style.visibility = (ss.style.shape == 'connector') ? '' : 'hidden';
+		styleSelect.style.visibility = (ss.style.shape == 'connector' || ss.style.shape == 'filledEdge') ? '' : 'hidden';
 		
 		if (mxUtils.getValue(ss.style, mxConstants.STYLE_CURVED, null) == '1')
 		{
@@ -4397,7 +4415,10 @@ DiagramFormatPanel.prototype.addView = function(div)
 			return graph.background;
 		}, function(color)
 		{
-			ui.setBackgroundColor(color);
+			var change = new ChangePageSetup(ui, color);
+			change.ignoreImage = true;
+			
+			graph.model.execute(change);
 		}, '#ffffff',
 		{
 			install: function(apply)
@@ -4677,9 +4698,14 @@ DiagramFormatPanel.prototype.addPaperSize = function(div)
 
 	var accessor = PageSetupDialog.addPageFormatPanel(div, 'formatpanel', graph.pageFormat, function(pageFormat)
 	{
-		if (graph.pageFormat == null || graph.pageFormat.width != pageFormat.width || graph.pageFormat.height != pageFormat.height)
+		if (graph.pageFormat == null || graph.pageFormat.width != pageFormat.width ||
+			graph.pageFormat.height != pageFormat.height)
 		{
-			ui.setPageFormat(pageFormat);
+			var change = new ChangePageSetup(ui, null, null, pageFormat);
+			change.ignoreColor = true;
+			change.ignoreImage = true;
+			
+			graph.model.execute(change);
 		}
 	});
 	

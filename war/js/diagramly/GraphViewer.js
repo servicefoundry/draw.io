@@ -1137,29 +1137,30 @@ GraphViewer.prototype.addClickHandler = function(graph, ui)
 
 	graph.addClickHandler(this.graphConfig.highlight, mxUtils.bind(this, function(evt, href)
 	{
+		if (href == null)
+		{
+			var source = mxEvent.getSource(evt);
+		
+			if (source.nodeName.toLowerCase() == 'a')
+			{
+				href = source.getAttribute('href');
+			}
+		}
+		
 		if (ui != null)
 		{
-			var elt = mxEvent.getSource(evt)
-			href = elt.getAttribute('href');
-			
 			if (href != null && !(graph.isExternalProtocol(href) || graph.isBlankLink(href)))
 			{
 				// Hides lightbox if any links are clicked
-				ui.destroy();
+				// Async handling needed for anchors to work
+				window.setTimeout(function()
+				{
+					ui.destroy();
+				}, 0);
 			}
 		}
 		else
 		{
-			if (href == null)
-			{
-				var source = mxEvent.getSource(evt);
-			
-				if (source.nodeName.toLowerCase() == 'a')
-				{
-					href = source.getAttribute('href');
-				}
-			}
-			
 			if (href != null && graph.isPageLink(href))
 			{
 				var comma = href.indexOf(',');
@@ -1190,7 +1191,8 @@ GraphViewer.prototype.showLightbox = function()
 {
 	if (this.graphConfig.lightbox == 'open' || window.self !== window.top)
 	{
-		var p = (this.layersEnabled) ? '&layers=1' : '';
+		var url = 'https://www.draw.io/?client=1&lightbox=1&close=1&edit=_blank&target=blank';
+		url += (this.layersEnabled) ? '&layers=1' : '';
 		
 		if (typeof window.postMessage !== 'undefined' && (document.documentMode == null || document.documentMode >= 10))
 		{
@@ -1206,13 +1208,13 @@ GraphViewer.prototype.showLightbox = function()
 			});
 			
 			mxEvent.addListener(window, 'message', receive);
-			wnd = window.open('https://www.draw.io/?client=1&lightbox=1&close=1&edit=_blank' + p);
+			wnd = window.open(url);
 		}
 		else
 		{
 			// Data is pulled from global variable after tab loads
 			window.drawdata = this.xml;
-			window.open('https://www.draw.io/?client=1&lightbox=1&edit=_blank' + p);
+			window.open(url);
 		}
 	}
 	else

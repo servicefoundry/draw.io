@@ -102,6 +102,8 @@ public class Style
 		catch (Exception e)
 		{
 			// TODO handle exception correctly
+			//For numbers outside Integer range (usually unused/deleted shape), we just set the id to -1
+			this.Id = -1;
 		}
 		
 		cacheCells(model);
@@ -538,6 +540,20 @@ public class Style
 	 */
 	protected String getFillColor()
 	{
+		String fillGradientEnabled = this.getValue(this.getCellElement(mxVsdxConstants.FILL_GRADIENT_ENABLED), "0");
+		
+		if ("1".equals(fillGradientEnabled))
+		{
+			Section fillGradient = sections.get("FillGradient");
+			
+			if (fillGradient != null)
+			{
+				String color = this.getColor(fillGradient.getIndexedCell("0", "GradientStopColor"));
+				
+				if (color != null && !color.isEmpty()) return color;
+			}
+		}
+
 		String fillForeColor = this.getColor(this.getCellElement(mxVsdxConstants.FILL_FOREGND));
 		
 		if ("Themed".equals(fillForeColor))
@@ -592,7 +608,7 @@ public class Style
 
 		if (!color.startsWith("#"))
 		{
-			if (color.equals("0") || color.equals("255"))
+			if (color.equals("0") || color.equals("255") || color.isEmpty())
 			{
 				return "none";
 			}
@@ -830,7 +846,7 @@ public class Style
 	public String getIndentLeft(String index)
 	{
 		Element indentLeftElem = getCellElement(mxVsdxConstants.INDENT_LEFT, index, mxVsdxConstants.PARAGRAPH);
-		return String.valueOf(getScreenNumericalValue(indentLeftElem, 0));
+		return String.valueOf((int) Math.round(getScreenNumericalValue(indentLeftElem, 0)));
 	}
 
 	/**
@@ -841,7 +857,7 @@ public class Style
 	public String getIndentRight(String index)
 	{
 		Element indentRightElem = getCellElement(mxVsdxConstants.INDENT_RIGHT, index, mxVsdxConstants.PARAGRAPH);
-		return String.valueOf(getScreenNumericalValue(indentRightElem, 0));
+		return String.valueOf((int) Math.round(getScreenNumericalValue(indentRightElem, 0)));
 	}
 
 	/**
@@ -852,7 +868,7 @@ public class Style
 	public String getSpBefore(String index)
 	{
 		Element spBeforeElem = getCellElement(mxVsdxConstants.SPACE_BEFORE, index, mxVsdxConstants.PARAGRAPH);
-		return String.valueOf(getScreenNumericalValue(spBeforeElem, 0));
+		return String.valueOf((int) Math.round(getScreenNumericalValue(spBeforeElem, 0)));
 	}
 
 	/**
@@ -863,7 +879,7 @@ public class Style
 	public String getSpAfter(String index)
 	{
 		Element spAfterElem = getCellElement(mxVsdxConstants.SPACE_AFTER, index, mxVsdxConstants.PARAGRAPH);
-		return String.valueOf(getScreenNumericalValue(spAfterElem, 0));
+		return String.valueOf((int) Math.round(getScreenNumericalValue(spAfterElem, 0)));
 	}
 
 	/**

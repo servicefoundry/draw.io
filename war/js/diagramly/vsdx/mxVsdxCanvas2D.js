@@ -189,18 +189,26 @@ mxVsdxCanvas2D.prototype.createCellElem = function (name, val, formula)
 	return cell;
 };
 
-mxVsdxCanvas2D.prototype.createRowRel = function(type, index, x, y, a, b, c , d) 
+mxVsdxCanvas2D.prototype.createRowScaled = function(type, index, x, y, a, b, c , d, xF, yF, aF, bF, cF, dF) 
+{
+	return this.createRowRel(type, index, x / VsdxExport.prototype.CONVERSION_FACTOR, y / VsdxExport.prototype.CONVERSION_FACTOR,
+			a / VsdxExport.prototype.CONVERSION_FACTOR, b / VsdxExport.prototype.CONVERSION_FACTOR,
+			c / VsdxExport.prototype.CONVERSION_FACTOR, d / VsdxExport.prototype.CONVERSION_FACTOR,
+			xF, yF, aF, bF, cF, dF);
+};
+
+mxVsdxCanvas2D.prototype.createRowRel = function(type, index, x, y, a, b, c , d, xF, yF, aF, bF, cF, dF) 
 {
 	var row = this.createElt("Row");
 	row.setAttribute("T", type);
 	row.setAttribute("IX", index);
-	row.appendChild(this.createCellElem("X", x));
-	row.appendChild(this.createCellElem("Y", y));
+	row.appendChild(this.createCellElem("X", x, xF));
+	row.appendChild(this.createCellElem("Y", y, yF));
 	
-	if (a != null) row.appendChild(this.createCellElem("A", a));
-	if (b != null) row.appendChild(this.createCellElem("B", b));
-	if (c != null) row.appendChild(this.createCellElem("C", c));
-	if (d != null) row.appendChild(this.createCellElem("D", d));
+	if (a != null) row.appendChild(this.createCellElem("A", a, aF));
+	if (b != null) row.appendChild(this.createCellElem("B", b, bF));
+	if (c != null) row.appendChild(this.createCellElem("C", c, cF));
+	if (d != null) row.appendChild(this.createCellElem("D", d, dF));
 	
 	return row;
 };
@@ -271,14 +279,15 @@ mxVsdxCanvas2D.prototype.ellipse = function(x, y, w, h)
 	x = (x - geo.x + s.dx) * s.scale;
 	y = gh + (-y + geo.y - s.dy) * s.scale;
 
-	var hr = h/gh;
-	var wr = w/gw;
+	var xWr = (x + w/2) / gw;
+	var yHr = (y - h/2) / gh;
+	var aWr = x / gw;
+	var bHr = (y - h/2) / gh;
+	var cWr = (x + w/2) / gw;
+	var dHr = y / gh;
 	
-	this.geoSec.appendChild(this.createRowRel("RelMoveTo", this.geoStepIndex++, x/gw, y/gh - hr * 0.5));
-	
-	var row = this.createRowRel("RelEllipticalArcTo", this.geoStepIndex++, x/gw, y/gh - hr * 0.5001, wr * 0.5 + x/gw, y/gh - hr, 0);
-	row.appendChild(this.createCellElem("D", w/h, "Width/Height*"+(wr/hr)));
-	this.geoSec.appendChild(row);
+	this.geoSec.appendChild(this.createRowScaled("Ellipse", this.geoStepIndex++, x + w/2, y - h/2, x, y - h/2, x + w/2, y
+			, "Width*" + xWr, "Height*" + yHr, "Width*" + aWr, "Height*" + bHr, "Width*" + cWr, "Height*" + dHr));
 };
 
 /**
@@ -630,15 +639,15 @@ mxVsdxCanvas2D.prototype.text = function(x, y, w, h, str, align, valign, wrap, f
 		var s = this.state;
 		var geo = this.xmGeo;
 
-		var fontSize = this.cellState.style["fontSize"];
-		var fontFamily = this.cellState.style["fontFamily"];
-
 		w = w * s.scale;
 		h = h * s.scale;
 
 		var charSect = this.createElt("Section");
 		charSect.setAttribute('N', 'Character');
-		
+
+		var pSect = this.createElt("Section");
+		pSect.setAttribute('N', 'Paragraph');
+
 		var text = this.createElt("Text");
 
 		var rgb2hex = function (rgb){
@@ -649,26 +658,62 @@ mxVsdxCanvas2D.prototype.text = function(x, y, w, h, str, align, valign, wrap, f
 			  ("0" + parseInt(rgb[3],10).toString(16)).slice(-2) : '';
 		};
 		
-		var rowIndex = 0;
-		var calcW = 0, calcH = 0, newLineH = 0;
+		var rowIndex = 0, pIndex = 0;
+		var calcW = 0, calcH = 0, lastW = 0, lastH = 0, lineH = 0;
 		
-		var createTextRow = function(fontColor, fontSize, fontFamily, charSect, textEl, txt) 
+		var createTextRow = function(styleMap, charSect, pSect, textEl, txt) 
 		{
-			var strRect = mxUtils.getSizeForString(txt, fontSize, fontFamily, wrap? w : null);
-			calcW = Math.max(calcW, strRect.width);
-			calcH += strRect.height + newLineH;
-			newLineH = 6;
+			var fontSize = styleMap['fontSize'];
+			var fontFamily = styleMap['fontFamily'];
+			
+			var strRect = mxUtils.getSizeForString(txt, fontSize, fontFamily);
+			var wrapped = false;
+			
+			if (wrap && strRect.width > w) 
+			{
+				strRect = mxUtils.getSizeForString(txt, fontSize, fontFamily, w);
+				wrapped = true;
+			}
+
+			if (styleMap['blockElem'])
+			{
+				lastW += strRect.width;
+				calcW = Math.min(Math.max(calcW, lastW), w);
+				lastW = 0;
+				lastH = Math.max(lastH, strRect.height);
+				calcH += lastH + lineH;
+				lineH = lastH;
+				lastH = 0;
+			}
+			else 
+			{
+				lastW += strRect.width;
+				calcW = Math.min(Math.max(calcW, lastW), w);
+				lastH = Math.max(lastH, strRect.height);
+				calcH = Math.max(calcH, lastH);
+			}
 			
 			var charRow = that.createElt("Row");
 			charRow.setAttribute('IX', rowIndex);
 			
 			
-			if (fontColor)	charRow.appendChild(that.createCellElem("Color", fontColor));
+			if (styleMap['fontColor'])	charRow.appendChild(that.createCellElem("Color", styleMap['fontColor']));
 			
 			if (fontSize)	charRow.appendChild(that.createCellElemScaled("Size", fontSize * 0.97)); //the magic number 0.97 is needed such that text do not overflow
 			
 			if (fontFamily)	charRow.appendChild(that.createCellElem("Font", fontFamily));
 			
+			//0x00 No format
+			//0x01 Specifies that the text run has a bold character property. 
+			//0x02 Specifies that the text run has an italic character property. 
+			//0x04 Specifies that the text run has an underline character property. 
+			//0x08 Specifies that the text run has a small caps character property.
+			var style = 0;
+			if (styleMap['bold']) style |= 0x11;	
+			if (styleMap['italic']) style |= 0x22;
+			if (styleMap['underline']) style |= 0x4;
+			
+			charRow.appendChild(that.createCellElem("Style", style));
 			charRow.appendChild(that.createCellElem("Case", "0"));
 			charRow.appendChild(that.createCellElem("Pos", "0"));
 			charRow.appendChild(that.createCellElem("FontScale", "1"));
@@ -676,49 +721,88 @@ mxVsdxCanvas2D.prototype.text = function(x, y, w, h, str, align, valign, wrap, f
 			
 			charSect.appendChild(charRow);
 			
+//			var pRow = that.createElt("Row");
+//			pRow.setAttribute('IX', pIndex);
+//			
+//			var align = 1; //center is default
+//			
+//			switch(styleMap['align'])
+//			{
+//				case 'left': align = 0; break;
+//				case 'center': align = 1; break;
+//				case 'right': align = 2; break;
+//			}
+			
+//			pRow.appendChild(that.createCellElem("HorzAlign", align));
+//			pRow.appendChild(that.createCellElem("SpLine", "-1.2"));
+//			pSect.appendChild(pRow);
+			
+//			var pp = that.createElt("pp");
+//			pp.setAttribute('IX', pIndex++);
+//			textEl.appendChild(pp);
 			var cp = that.createElt("cp");
 			cp.setAttribute('IX', rowIndex++);
 			textEl.appendChild(cp);
-			var txtNode = that.xmlDoc.createTextNode(txt+"\n");  
+			var txtNode = that.xmlDoc.createTextNode(txt + (styleMap['blockElem']? "\n" : ""));  
 			textEl.appendChild(txtNode);
 		};
 
-		var processNodeChildren = function(ch, fontSize, fontFamily) 
+		var processNodeChildren = function(ch, pStyle) 
 		{
+			pStyle = pStyle || {};
 			for (var i=0; i<ch.length; i++) 
 			{
 				if (ch[i].nodeType == 3) 
 				{ //#text
-					var fontColor = that.cellState.style["fontColor"];
-					
-					createTextRow(fontColor, fontSize, fontFamily, charSect, text, ch[i].textContent);
+					var styleMap = {
+						fontColor: pStyle['fontColor'] || that.cellState.style["fontColor"],
+						fontSize: pStyle['fontSize'] || that.cellState.style["fontSize"],
+						fontFamily: pStyle['fontFamily'] || that.cellState.style["fontFamily"],
+						align: pStyle['align'] || that.cellState.style["align"],
+						bold: pStyle['bold'],
+						italic: pStyle['italic'],
+						underline: pStyle['underline']
+					};
+					createTextRow(styleMap, charSect, pSect, text, ch[i].textContent);
 				} 
 				else if (ch[i].nodeType == 1) 
 				{ //element
+					var nodeName = ch[i].nodeName.toUpperCase();
 					var chLen = ch[i].childNodes.length;
-					if (chLen > 0 && !(chLen == 1 && ch[i].childNodes[0].nodeType == 3)) 
+					var style = window.getComputedStyle(ch[i], null);
+					var styleMap = {
+						bold: style.getPropertyValue('font-weight') == 'bold' || pStyle['bold'],
+						italic: style.getPropertyValue('font-style') == 'italic' || pStyle['italic'],
+						underline: style.getPropertyValue('text-decoration').indexOf('underline') >= 0 || pStyle['underline'],
+						align: style.getPropertyValue('text-align'),
+						fontColor: rgb2hex(style.getPropertyValue('color')),
+						fontSize: parseFloat(style.getPropertyValue('font-size')),
+						fontFamily: style.getPropertyValue('font-family').replace(/"/g, ''), //remove quotes
+						blockElem: style.getPropertyValue('display') == 'block' || nodeName == "BR" || nodeName == "LI"
+					};
+					
+//					if (nodeName == "OL" || nodeName == "UL")
+//					{
+//						var pRow = that.createElt("Row");
+//						pRow.setAttribute('IX', pIndex);
+//						
+//						pRow.appendChild(that.createCellElem("HorzAlign", "0"));
+//						pRow.appendChild(that.createCellElem("Bullet", "1"));
+//						pSect.appendChild(pRow);
+//						
+//						var pp = that.createElt("pp");
+//						pp.setAttribute('IX', pIndex++);
+//						text.appendChild(pp);
+//					}
+					
+					if (chLen > 0)
 					{
-						processNodeChildren(ch[i].childNodes, fontSize, fontFamily);
+						createTextRow(styleMap, charSect, pSect, text, ""); //to handle block elements if any
+						processNodeChildren(ch[i].childNodes, styleMap);
 					}
 					else
 					{
-						var style = window.getComputedStyle(ch[i], null);
-						
-						var fontColor = rgb2hex(style.getPropertyValue('color'));
-						
-						var fontSize = style.getPropertyValue('font-size');
-						if (fontSize) 
-						{
-							fontSize = parseFloat(fontSize);
-						}
-						
-						var fontFamily = style.getPropertyValue('font-family');
-						if (fontFamily)	
-						{
-							fontFamily = fontFamily.replace(/"/g, ''); //remove quotes
-						}
-						
-						createTextRow(fontColor, fontSize, fontFamily, charSect, text, ch[i].textContent);
+						createTextRow(styleMap, charSect, pSect, text, ch[i].textContent);
 					}
 				}
 			}
@@ -729,14 +813,17 @@ mxVsdxCanvas2D.prototype.text = function(x, y, w, h, str, align, valign, wrap, f
 			//Get the actual HTML label node
 			var ch = this.cellState.text.node.getElementsByTagName('div')[mxClient.NO_FO? 0 : 1].childNodes;
 			
-			processNodeChildren(ch, fontSize, fontFamily);
+			processNodeChildren(ch, {});
     	}
 		else
 		{
 			//If it is not HTML or SVG, we fall back to removing html format
-			var fontColor = this.cellState.style["fontColor"];
-
-			createTextRow(fontColor, fontSize, fontFamily, charSect, text, str);
+			var styleMap = {
+				fontColor: that.cellState.style["fontColor"],
+				fontSize: that.cellState.style["fontSize"],
+				fontFamily: that.cellState.style["fontFamily"]
+			};
+			createTextRow(styleMap, charSect, pSect, text, str);
 		}
 		
 		var wShift = 0;
@@ -776,6 +863,7 @@ mxVsdxCanvas2D.prototype.text = function(x, y, w, h, str, align, valign, wrap, f
 		
 		
 		this.shape.appendChild(charSect);
+//		this.shape.appendChild(pSect);
 		this.shape.appendChild(text);
 //		if (overflow != null)
 //		{

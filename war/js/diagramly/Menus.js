@@ -436,7 +436,7 @@
 
 		editorUi.actions.addAction('quickStart...', function()
 		{
-			window.open('https://youtu.be/Z0D96ZikMkc');
+			window.open('https://www.youtube.com/watch?v=Z0D96ZikMkc');
 		});
 		
 		action = editorUi.actions.addAction('tags...', mxUtils.bind(this, function()
@@ -508,12 +508,10 @@
 			if (typeof(VsdxExport) === 'undefined' && !this.loadingVsdx && !editorUi.isOffline())
 			{
 				this.loadingVsdx = true;
-				// Dependencies included in Devel.js
-				mxscript('/js/vsdx.min.js', delayed);
+				mxscript('js/vsdx.min.js', delayed);
 			}
 			else
 			{
-				// Must be async for cell selection
 				window.setTimeout(delayed, 0);
 			}
 		}));
@@ -687,6 +685,41 @@
 				this.addMenuItems(menu, ['support', '-', 'about']);
 			}
 
+			if (urlParams['ruler'] == '1')
+			{
+				mxResources.parse('rulerInch=Ruler unit: Inches');
+
+				this.editorUi.actions.addAction('rulerInch', mxUtils.bind(this, function()
+				{
+					this.editorUi.vRuler.setUnit(mxRuler.prototype.INCHES);
+					this.editorUi.hRuler.setUnit(mxRuler.prototype.INCHES);
+					this.editorUi.vRuler.drawRuler(true);
+					this.editorUi.hRuler.drawRuler(true);
+				}));
+
+				mxResources.parse('rulerCM=Ruler unit: CMs');
+
+				this.editorUi.actions.addAction('rulerCM', mxUtils.bind(this, function()
+				{
+					this.editorUi.vRuler.setUnit(mxRuler.prototype.CENTIMETER);
+					this.editorUi.hRuler.setUnit(mxRuler.prototype.CENTIMETER);
+					this.editorUi.vRuler.drawRuler(true);
+					this.editorUi.hRuler.drawRuler(true);
+				}));
+
+				mxResources.parse('rulerPixel=Ruler unit: Pixels');
+
+				this.editorUi.actions.addAction('rulerPixel', mxUtils.bind(this, function()
+				{
+					this.editorUi.vRuler.setUnit(mxRuler.prototype.PIXELS);
+					this.editorUi.hRuler.setUnit(mxRuler.prototype.PIXELS);
+					this.editorUi.vRuler.drawRuler(true);
+					this.editorUi.hRuler.drawRuler(true);
+				}));
+
+				this.addMenuItems(menu, ['-', 'rulerInch', 'rulerCM', 'rulerPixel'], parent);
+			}
+			
 			if (urlParams['test'] == '1')
 			{
 				// For showing the bounding box
@@ -1069,8 +1102,7 @@
 			}
 		});
 
-		// Adds plugins menu item in file menu only if localStorage is available for
-		// storing the plugins.
+		// Adds plugins menu item only if localStorage is available for storing the plugins
 		if (isLocalStorage || mxClient.IS_CHROMEAPP)
 		{
 			var action = editorUi.actions.addAction('scratchpad', function()
@@ -1466,17 +1498,35 @@
 				{
 					editorUi.loadImage(data, mxUtils.bind(this, function(img)
 	    			{
-	    				editorUi.resizeImage(img, data, mxUtils.bind(this, function(data2, w2, h2)
-	    				{
-		    				var s = Math.min(1, Math.min(editorUi.maxImageSize / w2, editorUi.maxImageSize / h2));
+			    		var resizeImages = true;
+			    		
+			    		var doInsert = mxUtils.bind(this, function()
+			    		{
+		    				editorUi.resizeImage(img, data, mxUtils.bind(this, function(data2, w2, h2)
+    	    				{
+    		    				var s = (resizeImages) ? Math.min(1, Math.min(editorUi.maxImageSize / w2, editorUi.maxImageSize / h2)) : 1;
 
-							editorUi.importFile(data, mime, x, y, Math.round(w2 * s), Math.round(h2 * s), filename, function(cells)
-							{
-								editorUi.spinner.stop();
-								graph.setSelectionCells(cells);
-								graph.scrollCellToVisible(graph.getSelectionCell());
-							});
-	    				}), true);
+    							editorUi.importFile(data, mime, x, y, Math.round(w2 * s), Math.round(h2 * s), filename, function(cells)
+    							{
+    								editorUi.spinner.stop();
+    								graph.setSelectionCells(cells);
+    								graph.scrollCellToVisible(graph.getSelectionCell());
+    							});
+    	    				}), resizeImages);
+			    		});
+			    		
+			    		if (data.length > editorUi.resampleThreshold)
+			    		{
+			    			editorUi.confirmImageResize(function(doResize)
+	    					{
+	    						resizeImages = doResize;
+	    						doInsert();
+	    					});
+			    		}
+			    		else
+		    			{
+			    			doInsert();
+		    			}
 	    			}), mxUtils.bind(this, function()
 	    			{
 	    				editorUi.handleError({message: mxResources.get('cannotOpenFile')});
@@ -2340,8 +2390,13 @@
 				var item = this.addMenuItem(menu, 'mathematicalTypesetting', parent);
 				this.addLinkToItem(item, 'https://desk.draw.io/support/solutions/articles/16000032875');
 			}
+			
+			if (urlParams['embed'] != '1')
+			{
+				this.addMenuItems(menu, ['autosave'], parent);
+			}
 
-			this.addMenuItems(menu, ['autosave', '-', 'createShape', 'editDiagram'], parent);
+			this.addMenuItems(menu, ['-', 'createShape', 'editDiagram'], parent);
 
 			menu.addSeparator(parent);
 			
@@ -2352,22 +2407,27 @@
 
 			if (!editorUi.isOfflineApp() && urlParams['embed'] != '1')
 			{
-				this.addMenuItems(menu, ['plugins', '-'], parent);
-				
-				var item = this.addMenuItem(menu, 'tags', parent);
+				var item = this.addMenuItem(menu, 'plugins', parent);
 				
 				if (!editorUi.isOffline() || mxClient.IS_CHROMEAPP)
 				{
-					this.addLinkToItem(item, 'https://desk.draw.io/support/solutions/articles/16000046966');
+					this.addLinkToItem(item, 'https://desk.draw.io/support/solutions/articles/16000056430');
 				}
-				
-				this.addMenuItems(menu, ['-', 'offline'], parent);
 			}
-			else
+				
+			menu.addSeparator(parent);
+			var item = this.addMenuItem(menu, 'tags', parent);
+			
+			if (!editorUi.isOffline() || mxClient.IS_CHROMEAPP)
 			{
-				menu.addSeparator(parent);
-				this.addMenuItem(menu, 'tags', parent);
-				menu.addSeparator(parent);
+				this.addLinkToItem(item, 'https://desk.draw.io/support/solutions/articles/16000046966');
+			}
+
+			menu.addSeparator(parent);
+			
+			if (!editorUi.isOfflineApp() && urlParams['embed'] != '1')
+			{
+				this.addMenuItems(menu, ['-', 'offline'], parent);
 			}
 			
 			if (!editorUi.isOffline() && !navigator.standalone && urlParams['embed'] != '1')

@@ -222,8 +222,7 @@
 	 */
 	EditorUi.prototype.isOffline = function()
 	{
-		// In FF navigator.onLine is always true
-		return (mxClient.IS_FF && this.isOfflineApp()) || !navigator.onLine || urlParams['stealth'] == '1';
+		return this.isOfflineApp() || !navigator.onLine || urlParams['stealth'] == '1';
 	};
 
 	/**
@@ -1337,6 +1336,16 @@
 						// ignore
 					}
 				}
+				
+				try
+				{
+					mxSettings.setOpenCounter(mxSettings.getOpenCounter() + 1);
+					mxSettings.save();
+				}
+				catch (e)
+				{
+					// ignore
+				}
 			}
 			catch (e)
 			{
@@ -2137,7 +2146,7 @@
 				
 				mxEvent.addGestureListeners(link, mxUtils.bind(this, function(evt)
 				{
-					window.open('https://support.draw.io/questions/10420280');
+					window.open('https://desk.draw.io/support/solutions/articles/16000042367');
 					mxEvent.consume(evt);
 				}));
 				
@@ -2188,7 +2197,7 @@
     		}
     	}
 
-		EditorUi.prototype.footerHeight = (screen.height <= 740) ? 5 : 46;
+		EditorUi.prototype.footerHeight = (screen.width >= 760 && screen.height >= 240) ? 46 : 0;
 		
 		// Fetches footer from page
 		EditorUi.prototype.createFooter = function()
@@ -2246,8 +2255,8 @@
     EditorUi.prototype.showImageDialog = function(title, value, fn, ignoreExisting, convertDataUri)
 	{
 		// KNOWN: IE+FF don't return keyboard focus after image dialog (calling focus doesn't help)
-    	var dlg = new ImageDialog(this, title, value, fn, ignoreExisting, convertDataUri);
-		this.showDialog(dlg.container, (Graph.fileSupport) ? 420 : 340, (Graph.fileSupport) ? 200 : 90, true, true);
+	    	var dlg = new ImageDialog(this, title, value, fn, ignoreExisting, convertDataUri);
+		this.showDialog(dlg.container, (Graph.fileSupport) ? 440 : 360, (Graph.fileSupport) ? 200 : 90, true, true);
 		dlg.init();
 	};
 
@@ -2258,7 +2267,10 @@
 	{
 		apply = (apply != null) ? apply : mxUtils.bind(this, function(image)
 		{
-			this.setBackgroundImage(image);
+			var change = new ChangePageSetup(this, null, image);
+			change.ignoreColor = true;
+			
+			this.editor.graph.model.execute(change);
 		});
 		var dlg = new BackgroundImageDialog(this, mxUtils.bind(this, function(image)
 		{
@@ -2784,7 +2796,8 @@
 		}), mxUtils.bind(this, function()
 		{
 			this.hideDialog();
-		}), mxResources.get('saveAs'), mxResources.get('download'), false, allowBrowser, allowTab, null, null, (allowBrowser) ? 3 : 4);
+		}), mxResources.get('saveAs'), mxResources.get('download'), false, allowBrowser, allowTab,
+			null, null, (allowBrowser) ? 3 : 4, data, mimeType, base64Encoded);
 		this.showDialog(dlg.container, 380, (this.getServiceCount(allowBrowser) - 1 <
 			((allowBrowser) ? 4 : 5)) ? 270 : 390, true, true);
 		dlg.init();
@@ -2893,7 +2906,8 @@
 		}), mxUtils.bind(this, function()
 		{
 			this.hideDialog();
-		}), mxResources.get('saveAs'), mxResources.get('download'), false, false, allowTab, null, null, 4);
+		}), mxResources.get('saveAs'), mxResources.get('download'), false, false, allowTab,
+			null, null, 4, data, mimeType, base64Encoded);
 		this.showDialog(dlg.container, 380, (this.getServiceCount(false) - 1 < 5) ? 270 : 390, true, true);
 		dlg.init();
 	};
@@ -2959,17 +2973,17 @@
 				var svg = '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n' +
 					mxUtils.getXml(svgRoot);
 				
-	    		if (this.isLocalFileSave() || svg.length <= MAX_REQUEST_SIZE)
-	    		{
-	    	    	this.saveData(filename, 'svg', svg, 'image/svg+xml');
-	    		}
-	    		else
-	    		{
-	    			this.handleError({message: mxResources.get('drawingTooLarge')}, mxResources.get('error'), mxUtils.bind(this, function()
-	    			{
-	    				mxUtils.popup(svg);
-	    			}));
-	    		}
+		    		if (this.isLocalFileSave() || svg.length <= MAX_REQUEST_SIZE)
+		    		{
+		    			this.saveData(filename, 'svg', svg, 'image/svg+xml');
+		    		}
+		    		else
+		    		{
+		    			this.handleError({message: mxResources.get('drawingTooLarge')}, mxResources.get('error'), mxUtils.bind(this, function()
+		    			{
+		    				mxUtils.popup(svg);
+		    			}));
+		    		}
 			});
 			
 			this.convertMath(this.editor.graph, svgRoot, false, mxUtils.bind(this, function()
@@ -3754,6 +3768,8 @@
 		var cb6 = document.createElement('input');
 		cb6.style.marginTop = '16px';
 		cb6.style.marginRight = '8px';
+		cb6.style.marginLeft = '24px';
+		cb6.setAttribute('disabled', 'disabled');
 		cb6.setAttribute('type', 'checkbox');
 
 		if (cropOption)
@@ -3763,13 +3779,21 @@
 			mxUtils.br(div);
 			
 			height += 26;
+			
+			mxEvent.addListener(selection, 'change', function()
+			{
+				if (selection.checked)
+				{
+					cb6.removeAttribute('disabled');
+				}
+				else
+				{
+					cb6.setAttribute('disabled', 'disabled');
+				}
+			});
 		}
 		
-		if (graph.isSelectionEmpty())
-		{
-			cb6.setAttribute('disabled', 'disabled');
-		}
-		else
+		if (!graph.isSelectionEmpty())
 		{
 			cb6.setAttribute('checked', 'checked');
 			cb6.defaultChecked = true;
@@ -4946,9 +4970,9 @@
 	};
 
 	/**
-	 * Automatic loading for lucidchart import.
+	 * Imports the given Lucidchart data.
 	 */
-	EditorUi.prototype.insertLucidChart = function(g, dx, dy, crop)
+	EditorUi.prototype.importLucidChart = function(data, dx, dy, crop, done)
 	{
 		var delayed = mxUtils.bind(this, function()
 		{
@@ -4957,11 +4981,31 @@
 			{
 				try
 				{
-					this.pasteLucidChart(g, dx, dy, crop);
+					this.insertLucidChart(data, dx, dy, crop, done);
+					
+					if (this.updateAd != null && !this.lucidchartTweetShown && urlParams['embed'] != '1')
+					{
+						this.adsHtml.push('<a title="' + mxResources.get('loveIt', ['draw.io']) +
+							'" target="_blank" href="https://twitter.com/intent/tweet?text=' +
+							encodeURIComponent('I\'ve just copy and pasted my Lucidchart diagram into www.draw.io') +
+							'" onclick="javascript:window.open(this.href, \'\', \'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,' +
+							'left=\'+((screen.width-640)/2)+\',top=\'+((screen.height-280)/3)+\',height=280,width=640\');return false;"\'>' +
+							'<img border="0" align="absmiddle" style="margin-top:-2px;padding-right:8px;" src="' +
+							Editor.tweetImage + '"/>Paste from Lucidchart?</a>');
+						this.updateAd(this.adsHtml.length - 1, 200);
+						this.lucidchartTweetShown = true;
+					}
 				}
 				catch (e)
 				{
-					// ignore
+					this.handleError(e);
+				}
+				finally 
+				{
+				    	if (done != null)
+				    	{
+				    		done();
+				    	}
 				}
 			}
 		});
@@ -4972,11 +5016,11 @@
 			
 			if (urlParams['dev'] == '1')
 			{
-				mxscript('/js/diagramly/Extensions.js', delayed);
+				mxscript('js/diagramly/Extensions.js', delayed);
 			}
 			else
 			{
-				mxscript('/js/extensions.min.js', delayed);
+				mxscript('js/extensions.min.js', delayed);
 			}
 		}
 		else
@@ -4987,12 +5031,82 @@
 	};
 	
 	/**
+	 * Automatic loading for lucidchart import.
+	 */
+	EditorUi.prototype.insertLucidChart = function(data, dx, dy, crop, done)
+	{
+		var state = JSON.parse(data);
+		
+		// Extracts and sorts all pages
+		var pages = [];
+
+		if (state.state != null)
+		{
+			state = JSON.parse(state.state);
+			
+			for (var id in state.Pages)
+			{
+				pages.push(state.Pages[id]);
+			}
+			
+			pages.sort(function(a, b)
+			{
+			    if (a.Properties.Order < b.Properties.Order)
+			    {
+			    	return -1;
+			    }
+			    else if (a.Properties.Order > b.Properties.Order)
+			    {
+			    	return 1;
+			    }
+			    else
+			    {
+			    	return 0;
+			    }
+			});
+		}
+		else
+		{
+			pages.push(state);
+		}
+		
+		if (pages.length > 0)
+		{
+		    	this.editor.graph.getModel().beginUpdate();
+		    	
+		    	try
+		    	{
+				this.pasteLucidChart(pages[0], dx, dy, crop);
+				
+				// If pages are enabled add more pages
+				if (this.pages != null)
+				{
+					var current = this.currentPage;
+					
+					for (var i = 1; i < pages.length; i++)
+					{
+						this.insertPage();
+						this.pasteLucidChart(pages[i]);
+					}
+					
+					this.selectPage(current);
+				}
+		    	}
+		    	finally
+		    	{
+		    		this.editor.graph.getModel().endUpdate();
+		    	}
+		}
+	};
+	
+	/**
 	 * Imports the given XML into the existing diagram.
 	 * TODO: Make this function asynchronous
 	 */
-	EditorUi.prototype.insertTextAt = function(text, dx, dy, html, asImage, crop)
+	EditorUi.prototype.insertTextAt = function(text, dx, dy, html, asImage, crop, resizeImages)
 	{
 		crop = (crop != null) ? crop : true;
+		resizeImages = (resizeImages != null) ? resizeImages : true;
 		
 		// Handles special case for Gliffy data which requires async server-side for parsing
 		if (text != null)
@@ -5067,7 +5181,7 @@
 							graph.setSelectionCell(graph.insertVertex(null, null, '', graph.snap(dx), graph.snap(dy),
 									w2, h2, 'shape=image;verticalLabelPosition=bottom;labelBackgroundColor=#ffffff;' +
 									'verticalAlign=top;aspect=fixed;imageAspect=0;image=' + this.convertDataUri(data2) + ';'));
-	    				}), true, this.maxImageSize);
+	    				}), resizeImages, this.maxImageSize);
 					}
 					else
 					{
@@ -5114,26 +5228,7 @@
 				{
 					if (text.substring(0, 26) == '{"state":"{\\"Properties\\":')
 					{
-						// Finds and imports first page
-						var state = JSON.parse(JSON.parse(text).state);
-						var page = null;
-						
-						for (var id in state.Pages)
-						{
-							var tmp = state.Pages[id];
-							
-							if (tmp != null && tmp.Properties.Order == '0')
-							{
-								page = tmp;
-								
-								break;
-							}
-						}
-						
-						if (page != null)
-						{
-							this.insertLucidChart(page, dx, dy, crop);
-						}
+						this.importLucidChart(text, dx, dy, crop);
 					}
 					else
 					{
@@ -5369,297 +5464,375 @@
 	/**
 	 * 
 	 */
-	EditorUi.prototype.importFiles = function(files, x, y, maxSize, fn, resultFn, filterFn, barrierFn, resizeImages, maxBytes, resampleThreshold, ignoreEmbeddedXml)
+	EditorUi.prototype.importFiles = function(files, x, y, maxSize, fn, resultFn, filterFn, barrierFn, resizeDialog, maxBytes, resampleThreshold, ignoreEmbeddedXml)
 	{
-		var crop = x != null && y != null;
-		
 		x = (x != null) ? x : 0;
 		y = (y != null) ? y : 0;
 		maxSize = (maxSize != null) ? maxSize : this.maxImageSize;
 		maxBytes = (maxBytes != null) ? maxBytes : this.maxImageBytes;
-		resizeImages = (resizeImages != null) ? resizeImages : true;
 		
-		var graph = this.editor.graph;
-		var gs = graph.gridSize;
-
-		fn = (fn != null) ? fn : mxUtils.bind(this, function(data, mimeType, x, y, w, h, filename, done, file)
-		{
-			if (data != null && data.substring(0, 10) == '<mxlibrary')
-			{
-				this.spinner.stop();
-				this.loadLibrary(new LocalLibrary(this, data, filename));
-    			
-    			return null;
-			}
-			else
-			{
-				return this.importFile(data, mimeType, x, y, w, h, filename, done, file, crop, ignoreEmbeddedXml);
-			}
-		});
+		var crop = x != null && y != null;
+		var resizeImages = true;
 		
-		resultFn = (resultFn != null) ? resultFn : mxUtils.bind(this, function(cells)
+		// Checks if large images are imported
+		var largeImages = false;
+		
+		if (!mxClient.IS_CHROMEAPP && files != null)
 		{
-			graph.setSelectionCells(cells);
-		});
-
-		if (this.spinner.spin(document.body, mxResources.get('loading')))
-		{
-			var count = files.length;
-			var remain = count;
-			var queue = [];
+			var thresh = resampleThreshold || this.resampleThreshold;
 			
-			// Barrier waits for all files to be loaded asynchronously
-			var barrier = mxUtils.bind(this, function(index, fnc)
+			for (var i = 0; i < files.length; i++)
 			{
-				queue[index] = fnc;
-				
-				if (--remain == 0)
+				if (files[i].type.substring(0, 6) == 'image/' && files[i].size > thresh)
+				{
+					largeImages = true;
+					
+					break;
+				}
+			}
+		}
+
+		var doImportFiles = mxUtils.bind(this, function()
+		{
+			var graph = this.editor.graph;
+			var gs = graph.gridSize;
+	
+			fn = (fn != null) ? fn : mxUtils.bind(this, function(data, mimeType, x, y, w, h, filename, done, file)
+			{
+				if (data != null && data.substring(0, 10) == '<mxlibrary')
 				{
 					this.spinner.stop();
-					
-					if (barrierFn != null)
-					{
-						barrierFn(queue);
-					}
-					else
-					{
-						var cells = [];
-						
-						graph.getModel().beginUpdate();
-						try
-						{
-					    	for (var j = 0; j < queue.length; j++)
-					    	{
-					    		var tmp = queue[j]();
-					    		
-					    		if (tmp != null)
-					    		{
-					    			cells = cells.concat(tmp);
-					    		}
-					    	}
-						}
-						finally
-						{
-							graph.getModel().endUpdate();
-						}
-					}
-					
-					resultFn(cells);
+					this.loadLibrary(new LocalLibrary(this, data, filename));
+	    			
+	    			return null;
+				}
+				else
+				{
+					return this.importFile(data, mimeType, x, y, w, h, filename, done, file, crop, ignoreEmbeddedXml);
 				}
 			});
 			
-			for (var i = 0; i < count; i++)
+			resultFn = (resultFn != null) ? resultFn : mxUtils.bind(this, function(cells)
 			{
-				(mxUtils.bind(this, function(index)
-				{
-					var file = files[index];
-					var reader = new FileReader();
-					
-					reader.onload = mxUtils.bind(this, function(e)
-					{
-						if (filterFn == null || filterFn(file))
-						{
-				    		if (file.type.substring(0, 6) == 'image/')
-				    		{
-				    			if (file.type.substring(0, 9) == 'image/svg')
-				    			{
-				    				// Checks if SVG contains content attribute
-			    					var data = e.target.result;
-			    					var comma = data.indexOf(',');
-			    					var svgText = atob(data.substring(comma + 1));
-			    					var root = mxUtils.parseXml(svgText);
-		    						var svgs = root.getElementsByTagName('svg');
-		    						
-		    						if (svgs.length > 0)
-			    					{
-		    							var svgRoot = svgs[0];
-				    					var cont = (ignoreEmbeddedXml) ? null : svgRoot.getAttribute('content');
-
-				    					if (cont != null && cont.charAt(0) != '<' && cont.charAt(0) != '%')
-				    					{
-				    						cont = unescape((window.atob) ? atob(cont) : Base64.decode(cont, true));
-				    					}
-				    					
-				    					if (cont != null && cont.charAt(0) == '%')
-				    					{
-				    						cont = decodeURIComponent(cont);
-				    					}
-
-				    					if (cont != null && (cont.substring(0, 8) === '<mxfile ' ||
-				    						cont.substring(0, 14) === '<mxGraphModel '))
-				    					{
-				    						barrier(index, mxUtils.bind(this, function()
-						    				{
-						    					return fn(cont, 'text/xml', x + index * gs, y + index * gs, 0, 0, file.name);	
-						    				}));
-				    					}
-				    					else
-				    					{
-						    				// SVG needs special handling to add viewbox if missing and
-						    				// find initial size from SVG attributes (only for IE11)
-						    				barrier(index, mxUtils.bind(this, function()
-						    				{
-					    						try
-					    						{
-							    					var prefix = data.substring(0, comma + 1);
-							    					
-							    					// Parses SVG and find width and height
-							    					if (root != null)
-							    					{
-							    						var svgs = root.getElementsByTagName('svg');
-							    						
-							    						if (svgs.length > 0)
-								    					{
-							    							var svgRoot = svgs[0];
-								    						var w = parseFloat(svgRoot.getAttribute('width'));
-								    						var h = parseFloat(svgRoot.getAttribute('height'));
-								    						
-								    						// Check if viewBox attribute already exists
-								    						var vb = svgRoot.getAttribute('viewBox');
-								    						
-								    						if (vb == null || vb.length == 0)
-								    						{
-								    							svgRoot.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-								    						}
-								    						// Uses width and height from viewbox for
-								    						// missing width and height attributes
-								    						else if (isNaN(w) || isNaN(h))
-								    						{
-								    							var tokens = vb.split(' ');
-								    							
-								    							if (tokens.length > 3)
-								    							{
-								    								w = parseFloat(tokens[2]);
-								    								h = parseFloat(tokens[3]);
-								    							}
-								    						}
+				graph.setSelectionCells(cells);
+			});
 	
-								    						data = this.createSvgDataUri(mxUtils.getXml(svgs[0]));
-								    						
-								    						var s = Math.min(1, Math.min(maxSize / Math.max(1, w)), maxSize / Math.max(1, h));
-										    				
-										    				return fn(data, file.type, x + index * gs, y + index * gs,
-										    					Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)), file.name);
-								    					}
-							    					}
-					    						}
-					    						catch (e)
-					    						{
-					    							// ignores any SVG parsing errors
-					    						}
-						    					
-						    					return null;
-						    				}));
-				    					}
-			    					}
-				    			}
-				    			else
-				    			{
-				    				// Checks if PNG+XML is available to bypass code below
-				    				var containsModel = false;
-				    				
-				    				if (file.type == 'image/png')
-				    				{
-				    					var xml = (ignoreEmbeddedXml) ? null : this.extractGraphModelFromPng(e.target.result);
-				    					
-				    					if (xml != null && xml.length > 0)
-				    					{
-				    						var img = new Image();
-				    						img.src = e.target.result;
-				    						
-						    				barrier(index, mxUtils.bind(this, function()
-						    				{
-						    					return fn(xml, 'text/xml', x + index * gs, y + index * gs,
-						    						img.width, img.height, file.name);	
-						    				}));
-				    						
-				    						containsModel = true;
-				    					}
-				    				}
-				    				
-					    			// Additional asynchronous step for finding image size
-				    				if (!containsModel)
-				    				{
-				    					// Cannot load local files in Chrome App
-				    					if (mxClient.IS_CHROMEAPP)
-				    					{
-				    						this.spinner.stop();
-				    						this.showError(mxResources.get('error'), mxResources.get('dragAndDropNotSupported'),
-				    							mxResources.get('cancel'), mxUtils.bind(this, function()
-			    								{
-			    									// Hides the dialog
-			    								}), null, mxResources.get('ok'), mxUtils.bind(this, function()
-			    								{
-				    								// Redirects to import function
-			    									this.actions.get('import').funct();
-			    								})
-			    							);
-				    					}
-				    					else
-				    					{
-							    			this.loadImage(e.target.result, mxUtils.bind(this, function(img)
-							    			{
-							    				this.resizeImage(img, e.target.result, mxUtils.bind(this, function(data2, w2, h2)
-							    				{
-								    				barrier(index, mxUtils.bind(this, function()
-										    		{
-								    					// Refuses to insert images above a certain size as they kill the app
-								    					if (data2 != null && data2.length < maxBytes)
-								    					{
-									    					var s = (!resizeImages || !this.isResampleImage(e.target.result)) ? 1 : Math.min(1, Math.min(maxSize / w2, maxSize / h2));
-										    				
-									    					return fn(data2, file.type, x + index * gs, y + index * gs, Math.round(w2 * s), Math.round(h2 * s), file.name);
-								    					}
-								    					else
-								    					{
-								    						this.handleError({message: mxResources.get('imageTooBig')});
-								    						
-								    						return null;
-								    					}
-										    		}));
-							    				}), resizeImages, maxSize, resampleThreshold);
-							    			}));
-				    					}
-				    				}
-				    			}
-				    		}
-				    		else
-				    		{
-								fn(e.target.result, file.type, x + index * gs, y + index * gs, 240, 160, file.name, function(cells)
-								{
-									barrier(index, function()
-		    	    				{
-		    		    				return cells;
-		    	    				});
-								});
-				    		}
-						}
-					});
+			if (this.spinner.spin(document.body, mxResources.get('loading')))
+			{
+				var count = files.length;
+				var remain = count;
+				var queue = [];
+				
+				// Barrier waits for all files to be loaded asynchronously
+				var barrier = mxUtils.bind(this, function(index, fnc)
+				{
+					queue[index] = fnc;
 					
-					// Handles special case of binary file where the reader should not be used
-					if (/(\.vsdx)($|\?)/i.test(file.name) || /(\.vssx)($|\?)/i.test(file.name))
+					if (--remain == 0)
 					{
-						fn(null, file.type, x + index * gs, y + index * gs, 240, 160, file.name, function(cells)
+						this.spinner.stop();
+						
+						if (barrierFn != null)
 						{
-							barrier(index, function()
-    	    				{
-    		    				return cells;
-    	    				});
-						}, file);
+							barrierFn(queue);
+						}
+						else
+						{
+							var cells = [];
+							
+							graph.getModel().beginUpdate();
+							try
+							{
+						    	for (var j = 0; j < queue.length; j++)
+						    	{
+						    		var tmp = queue[j]();
+						    		
+						    		if (tmp != null)
+						    		{
+						    			cells = cells.concat(tmp);
+						    		}
+						    	}
+							}
+							finally
+							{
+								graph.getModel().endUpdate();
+							}
+						}
+						
+						resultFn(cells);
 					}
-					else if (file.type.substring(0, 5) == 'image')
+				});
+				
+				for (var i = 0; i < count; i++)
+				{
+					(mxUtils.bind(this, function(index)
 					{
-						reader.readAsDataURL(file);
-					}
-					else
-					{
-						reader.readAsText(file);
-					}
-				}))(i);
+						var file = files[index];
+						var reader = new FileReader();
+						
+						reader.onload = mxUtils.bind(this, function(e)
+						{
+							if (filterFn == null || filterFn(file))
+							{
+					    		if (file.type.substring(0, 6) == 'image/')
+					    		{
+					    			if (file.type.substring(0, 9) == 'image/svg')
+					    			{
+					    				// Checks if SVG contains content attribute
+				    					var data = e.target.result;
+				    					var comma = data.indexOf(',');
+				    					var svgText = atob(data.substring(comma + 1));
+				    					var root = mxUtils.parseXml(svgText);
+			    						var svgs = root.getElementsByTagName('svg');
+			    						
+			    						if (svgs.length > 0)
+				    					{
+			    							var svgRoot = svgs[0];
+					    					var cont = (ignoreEmbeddedXml) ? null : svgRoot.getAttribute('content');
+	
+					    					if (cont != null && cont.charAt(0) != '<' && cont.charAt(0) != '%')
+					    					{
+					    						cont = unescape((window.atob) ? atob(cont) : Base64.decode(cont, true));
+					    					}
+					    					
+					    					if (cont != null && cont.charAt(0) == '%')
+					    					{
+					    						cont = decodeURIComponent(cont);
+					    					}
+	
+					    					if (cont != null && (cont.substring(0, 8) === '<mxfile ' ||
+					    						cont.substring(0, 14) === '<mxGraphModel '))
+					    					{
+					    						barrier(index, mxUtils.bind(this, function()
+							    				{
+							    					return fn(cont, 'text/xml', x + index * gs, y + index * gs, 0, 0, file.name);	
+							    				}));
+					    					}
+					    					else
+					    					{
+							    				// SVG needs special handling to add viewbox if missing and
+							    				// find initial size from SVG attributes (only for IE11)
+							    				barrier(index, mxUtils.bind(this, function()
+							    				{
+						    						try
+						    						{
+								    					var prefix = data.substring(0, comma + 1);
+								    					
+								    					// Parses SVG and find width and height
+								    					if (root != null)
+								    					{
+								    						var svgs = root.getElementsByTagName('svg');
+								    						
+								    						if (svgs.length > 0)
+									    					{
+								    							var svgRoot = svgs[0];
+									    						var w = parseFloat(svgRoot.getAttribute('width'));
+									    						var h = parseFloat(svgRoot.getAttribute('height'));
+									    						
+									    						// Check if viewBox attribute already exists
+									    						var vb = svgRoot.getAttribute('viewBox');
+									    						
+									    						if (vb == null || vb.length == 0)
+									    						{
+									    							svgRoot.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+									    						}
+									    						// Uses width and height from viewbox for
+									    						// missing width and height attributes
+									    						else if (isNaN(w) || isNaN(h))
+									    						{
+									    							var tokens = vb.split(' ');
+									    							
+									    							if (tokens.length > 3)
+									    							{
+									    								w = parseFloat(tokens[2]);
+									    								h = parseFloat(tokens[3]);
+									    							}
+									    						}
+		
+									    						data = this.createSvgDataUri(mxUtils.getXml(svgs[0]));
+									    						
+									    						var s = Math.min(1, Math.min(maxSize / Math.max(1, w)), maxSize / Math.max(1, h));
+											    				
+											    				return fn(data, file.type, x + index * gs, y + index * gs,
+											    					Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s)), file.name);
+									    					}
+								    					}
+						    						}
+						    						catch (e)
+						    						{
+						    							// ignores any SVG parsing errors
+						    						}
+							    					
+							    					return null;
+							    				}));
+					    					}
+				    					}
+					    			}
+					    			else
+					    			{
+					    				// Checks if PNG+XML is available to bypass code below
+					    				var containsModel = false;
+					    				
+					    				if (file.type == 'image/png')
+					    				{
+					    					var xml = (ignoreEmbeddedXml) ? null : this.extractGraphModelFromPng(e.target.result);
+					    					
+					    					if (xml != null && xml.length > 0)
+					    					{
+					    						var img = new Image();
+					    						img.src = e.target.result;
+					    						
+							    				barrier(index, mxUtils.bind(this, function()
+							    				{
+							    					return fn(xml, 'text/xml', x + index * gs, y + index * gs,
+							    						img.width, img.height, file.name);	
+							    				}));
+					    						
+					    						containsModel = true;
+					    					}
+					    				}
+					    				
+						    			// Additional asynchronous step for finding image size
+					    				if (!containsModel)
+					    				{
+					    					// Cannot load local files in Chrome App
+					    					if (mxClient.IS_CHROMEAPP)
+					    					{
+					    						this.spinner.stop();
+					    						this.showError(mxResources.get('error'), mxResources.get('dragAndDropNotSupported'),
+					    							mxResources.get('cancel'), mxUtils.bind(this, function()
+				    								{
+				    									// Hides the dialog
+				    								}), null, mxResources.get('ok'), mxUtils.bind(this, function()
+				    								{
+					    								// Redirects to import function
+				    									this.actions.get('import').funct();
+				    								})
+				    							);
+					    					}
+					    					else
+					    					{
+								    			this.loadImage(e.target.result, mxUtils.bind(this, function(img)
+								    			{
+								    				this.resizeImage(img, e.target.result, mxUtils.bind(this, function(data2, w2, h2)
+								    				{
+									    				barrier(index, mxUtils.bind(this, function()
+											    		{
+									    					// Refuses to insert images above a certain size as they kill the app
+									    					if (data2 != null && data2.length < maxBytes)
+									    					{
+										    					var s = (!resizeImages || !this.isResampleImage(e.target.result, resampleThreshold)) ? 1 : Math.min(1, Math.min(maxSize / w2, maxSize / h2));
+											    				
+										    					return fn(data2, file.type, x + index * gs, y + index * gs, Math.round(w2 * s), Math.round(h2 * s), file.name);
+									    					}
+									    					else
+									    					{
+									    						this.handleError({message: mxResources.get('imageTooBig')});
+									    						
+									    						return null;
+									    					}
+											    		}));
+								    				}), resizeImages, maxSize, resampleThreshold);
+								    			}));
+					    					}
+					    				}
+					    			}
+					    		}
+					    		else
+					    		{
+									fn(e.target.result, file.type, x + index * gs, y + index * gs, 240, 160, file.name, function(cells)
+									{
+										barrier(index, function()
+			    	    				{
+			    		    				return cells;
+			    	    				});
+									});
+					    		}
+							}
+						});
+						
+						// Handles special case of binary file where the reader should not be used
+						if (/(\.vsdx)($|\?)/i.test(file.name) || /(\.vssx)($|\?)/i.test(file.name))
+						{
+							fn(null, file.type, x + index * gs, y + index * gs, 240, 160, file.name, function(cells)
+							{
+								barrier(index, function()
+	    	    				{
+	    		    				return cells;
+	    	    				});
+							}, file);
+						}
+						else if (file.type.substring(0, 5) == 'image')
+						{
+							reader.readAsDataURL(file);
+						}
+						else
+						{
+							reader.readAsText(file);
+						}
+					}))(i);
+				}
 			}
+		});
+		
+		if (largeImages)
+		{
+			this.confirmImageResize(function(doResize)
+			{
+				resizeImages = doResize;
+				doImportFiles();
+			}, resizeDialog);
+		}
+		else
+		{
+			doImportFiles();
 		}
 	};
 
+	/**
+	 * Parses the file using XHR2 via the server. File can be a blob or file object.
+	 * Filename is an optional parameter for blobs (that do not have a filename).
+	 */
+	EditorUi.prototype.confirmImageResize = function(fn, force)
+	{
+		force = (force != null) ? force : false;
+		var resume = (this.spinner != null && this.spinner.pause != null) ? this.spinner.pause() : function() {};
+		var resizeImages = (isLocalStorage || mxClient.IS_CHROMEAPP) ? mxSettings.getResizeImages() : null;
+		
+		var wrapper = function(remember, resize)
+		{
+			if (remember || force)
+			{
+				mxSettings.setResizeImages((remember) ? resize : null);
+				mxSettings.save();
+			}
+			
+			resume();
+			fn(resize);
+		};
+
+		if (resizeImages != null && !force)
+		{
+			wrapper(false, resizeImages);
+		}
+		else
+		{
+			this.showDialog(new ConfirmDialog(this, mxResources.get('resizeLargeImages'),
+			function(remember)
+			{
+				wrapper(remember, true);
+			},
+			function(remember)
+			{
+				wrapper(remember, false);
+			}, mxResources.get('resize'), mxResources.get('actualSize'),
+			'<img style="margin-top:8px;" src="' + Editor.loResImage + '"/>',
+			'<img style="margin-top:8px;" src="' + Editor.hiResImage + '"/>',
+			isLocalStorage || mxClient.IS_CHROMEAPP).container, 340,
+			(isLocalStorage || mxClient.IS_CHROMEAPP) ? 220 : 200, true, true);
+		}
+	};
+	
 	/**
 	 * Parses the file using XHR2 via the server. File can be a blob or file object.
 	 * Filename is an optional parameter for blobs (that do not have a filename).
@@ -6027,7 +6200,7 @@
 				
 				if (tmp != null)
 				{
-					tmp(evt);
+					tmp(evt, href);
 				}
 			};
 			
@@ -6457,7 +6630,7 @@
 					    		{
 					    			queue[i]();
 					    		}
-					    	}, !mxEvent.isControlDown(evt));
+					    	}, mxEvent.isControlDown(evt));
 			    		}
 					    else if (mxUtils.indexOf(evt.dataTransfer.types, 'text/uri-list') >= 0)
 					    {
@@ -6497,6 +6670,41 @@
 					}));
 				}
 			}));
+		}
+		
+		//Add ruler in test mode only
+		//TODO add the ruler containers correctly and make the vertical one dynamic as the side panel size can change
+		if (urlParams['ruler'] == '1' && typeof mxRuler !== 'undefined')
+		{
+			var hRulerDiv = document.createElement('div');
+			hRulerDiv.style.position = 'absolute';
+			hRulerDiv.style.top = '95px';
+			hRulerDiv.style.left = '250px';
+			hRulerDiv.style.width = '2000px';
+			hRulerDiv.style.height = '30px';
+			hRulerDiv.style.background = 'whiteSmoke';
+			document.body.appendChild(hRulerDiv);
+			
+			var vRulerDiv = document.createElement('div');
+			vRulerDiv.style.position = 'absolute';
+			vRulerDiv.style.top = '125px';
+			vRulerDiv.style.left = '220px';
+			vRulerDiv.style.width = '30px';
+			vRulerDiv.style.height = '1000px';
+			vRulerDiv.style.background = 'whiteSmoke';
+			document.body.appendChild(vRulerDiv);
+
+			var square = document.createElement('div');
+			square.style.position = 'absolute';
+			square.style.top = '95px';
+			square.style.left = '220px';
+			square.style.width = '30px';
+			square.style.height = '30px';
+			square.style.background = 'whiteSmoke';
+			document.body.appendChild(square);
+
+			this.vRuler = new mxRuler(this.editor.graph, vRulerDiv, true);
+			this.hRuler = new mxRuler(this.editor.graph, hRulerDiv, false);
 		}
 		
 		// Adds an element to edit the style in the footer in test mode
@@ -6623,7 +6831,7 @@
 				    if (evt.dataTransfer.files.length > 0)
 				    {
 						this.importFiles(evt.dataTransfer.files, x, y, this.maxImageSize, null, null, null, null,
-							!mxEvent.isControlDown(evt), null, null, mxEvent.isShiftDown(evt));
+							mxEvent.isControlDown(evt), null, null, mxEvent.isShiftDown(evt));
 		    		}
 				    else
 				    {
@@ -6669,7 +6877,25 @@
 				    			}
 				    		}
 				    		
-					    	graph.setSelectionCells(this.insertTextAt(html, x, y, true, asImage));
+				    		var resizeImages = true;
+				    		
+				    		var doInsert = mxUtils.bind(this, function()
+				    		{
+				    			graph.setSelectionCells(this.insertTextAt(html, x, y, true, asImage, null, resizeImages));
+				    		});
+				    		
+				    		if (asImage && html.length > this.resampleThreshold)
+				    		{
+				    			this.confirmImageResize(function(doResize)
+		    					{
+		    						resizeImages = doResize;
+		    						doInsert();
+		    					}, mxEvent.isControlDown(evt));
+				    		}
+				    		else
+			    			{
+				    			doInsert();
+			    			}
 					    }
 				    	else if (uri != null && (/\.(gif|jpg|jpeg|tiff|png|svg)$/i).test(uri))
 						{
@@ -6873,7 +7099,7 @@
 				
 				if (content != null && content.length > 0)
 				{
-					this.insertLucidChart(JSON.parse(content));
+					this.importLucidChart(content, 0, 0);
 					mxEvent.consume(evt);
 				}
 			}
@@ -7004,7 +7230,7 @@
 		
 				mxEvent.addListener(elts[i], 'dragover', mxUtils.bind(this, function(evt)
 				{
-					if (this.editor.graph.isEnabled())
+					if (this.editor.graph.isEnabled() || urlParams['embed'] != '1')
 					{
 						// IE 10 does not implement pointer-events so it can't have a drop highlight
 						if (dropElt == null && (!mxClient.IS_IE || (document.documentMode > 10 && document.documentMode < 12)))
@@ -7025,7 +7251,7 @@
 				    	dropElt = null;
 				    }
 					
-					if (this.editor.graph.isEnabled())
+					if (this.editor.graph.isEnabled() || urlParams['embed'] != '1')
 					{
 						if (evt.dataTransfer.files.length > 0)
 						{
@@ -7039,7 +7265,7 @@
 							}
 							else
 							{
-								this.openFiles(evt.dataTransfer.files);
+								this.openFiles(evt.dataTransfer.files, true);
 							}
 						}
 						else
@@ -7219,7 +7445,7 @@
 	/**
 	 * Opens the given files in the editor.
 	 */
-	EditorUi.prototype.openFiles = function(files)
+	EditorUi.prototype.openFiles = function(files, temp)
 	{
 		if (this.spinner.spin(document.body, mxResources.get('loading')))
 		{
@@ -7263,7 +7489,34 @@
 										
 										if (xhr.status >= 200 && xhr.status <= 299)
 										{
-											this.openLocalFile(xhr.responseText, name);
+											var xml = xhr.responseText;
+											
+											if (xml.substring(0, 10) == '<mxlibrary')
+											{
+												// Creates new temporary file if library is dropped in splash screen
+												if (this.getCurrentFile() == null && urlParams['embed'] != '1')
+												{
+													this.openLocalFile(this.emptyDiagramXml, this.defaultFilename, temp);
+												}
+												
+												if (name != null && name.toLowerCase().substring(name.length - 5) == '.vssx')
+												{
+													name = name.substring(0, filename.length - 5) + '.xml';
+												}
+												
+							    				try
+								    			{
+							    					this.loadLibrary(new LocalLibrary(this, xml, name));
+								    			}
+							    				catch (e)
+								    			{
+								    				this.handleError(e, mxResources.get('errorLoadingFile'));
+								    			}
+											}
+											else
+											{
+												this.openLocalFile(xml, name, temp);
+											}
 										}
 										else
 										{
@@ -7274,9 +7527,30 @@
 									}
 								}));
 							}
+							else if (data.substring(0, 26) == '{"state":"{\\"Properties\\":')
+							{
+								if (/(\.json)$/i.test(name))
+								{
+									name = name.substring(0, name.length - 5) + '.xml';
+								}
+
+								// LATER: Add import step that produces cells and use callback
+								this.openLocalFile(this.emptyDiagramXml, name, temp);
+								this.importLucidChart(data, 0, 0, null, mxUtils.bind(this, function()
+								{
+									this.editor.undoManager.clear();
+									this.spinner.stop();
+								}));
+							}
 							else if (e.target.result.substring(0, 10) == '<mxlibrary')
 			    			{
 								this.spinner.stop();
+								
+								// Creates new temporary file if library is dropped in splash screen
+								if (this.getCurrentFile() == null && urlParams['embed'] != '1')
+								{
+									this.openLocalFile(this.emptyDiagramXml, this.defaultFilename, temp);
+								}
 								
 			    				try
 				    			{
@@ -7295,7 +7569,7 @@
 								}
 								
 								this.spinner.stop();
-								this.openLocalFile(data, name);
+								this.openLocalFile(data, name, temp);
 							}
 						}
 					});
@@ -7455,6 +7729,11 @@
 		this.sidebarContainer.style.display = (enabled) ? '' : 'none';
 		this.hsplit.style.display = (enabled) ? '' : 'none';
 		this.editor.graph.setEnabled(enabled);
+		
+		if (this.tabContainer != null)
+		{
+			this.tabContainer.style.visibility = (enabled) ? '' : 'hidden';	
+		}
 	};
 	
 	/**
@@ -7686,7 +7965,12 @@
 						this.hideDialog();
 						parent.postMessage(JSON.stringify({event: 'draft', result: 'discard', message: data}), '*');
 					}), (data.editKey) ? mxResources.get(data.editKey) : null,
-						(data.discardKey) ? mxResources.get(data.discardKey) : null);
+						(data.discardKey) ? mxResources.get(data.discardKey) : null,
+						(data.ignore) ? mxUtils.bind(this, function()
+						{
+							this.hideDialog();
+							parent.postMessage(JSON.stringify({event: 'draft', result: 'ignore', message: data}), '*');
+						}) : null);
 					this.showDialog(dlg.container, 640, 480, true, false, mxUtils.bind(this, function(cancel)
 					{
 						if (cancel)
@@ -7794,8 +8078,9 @@
 								
 								var msg = this.createLoadMessage('export');
 								msg.format = data.format;
-								msg.xml = encodeURIComponent(xml);
+								msg.message = data;
 								msg.data = uri;
+								msg.xml = encodeURIComponent(xml);
 								parent.postMessage(JSON.stringify(msg), '*');
 							});
 							
@@ -7808,12 +8093,12 @@
 								
 						   	    if (data.format == 'xmlpng')
 						   	    {
-						   	    	uri = this.writeGraphModelToPng(uri, 'zTXt', 'mxGraphModel',
-						   	    		atob(this.editor.graph.compress(xml)));	
+						   	    		uri = this.writeGraphModelToPng(uri, 'zTXt', 'mxGraphModel',
+						   	    				atob(this.editor.graph.compress(xml)));	
 						   	    }
 						   	    	
 								// Removes temporary graph from DOM
-				   	   	    	if (graph != this.editor.graph)
+						   	    if (graph != this.editor.graph)
 								{
 									graph.container.parentNode.removeChild(graph.container);
 								}
@@ -7955,7 +8240,7 @@
 											parent.postMessage(JSON.stringify(msg), '*');
 					        			}));
 					        		}
-								}
+							}
 				        		
 				        		return;
 				        	}
@@ -8002,8 +8287,14 @@
 							this.buttonContainer.style.paddingRight = '38px';
 							this.buttonContainer.style.paddingTop = '6px';
 						}
-						
+
+						if (this.embedFilenameSpan != null)
+						{
+							this.embedFilenameSpan.parentNode.removeChild(this.embedFilenameSpan);
+						}
+
 						this.buttonContainer.appendChild(tmp);
+						this.embedFilenameSpan = tmp;
 					}
 					
 					if (data.xmlpng != null)
@@ -9031,10 +9322,12 @@
 		this.actions.get('createRevision').setEnabled(active);
 		this.actions.get('moveToFolder').setEnabled(file != null);
 		this.actions.get('makeCopy').setEnabled(file != null && !file.isRestricted());
-		this.actions.get('editDiagram').setEnabled((urlParams['embed'] == '1'  &&
+		this.actions.get('editDiagram').setEnabled((urlParams['embed'] == '1' &&
 			this.editor.graph.isEnabled()) || (file != null && !file.isRestricted()));
 		this.actions.get('publishLink').setEnabled(file != null && !file.isRestricted());
-		this.actions.get('tags').setEnabled(file != null && file.isEditable());
+		this.actions.get('tags').setEnabled((urlParams['embed'] == '1' &&
+			this.editor.graph.isEnabled()) || (file != null && !file.isRestricted()));
+		this.actions.get('close').setEnabled(file != null);
 		this.menus.get('publish').setEnabled(file != null && !file.isRestricted());
 		
 		var state = graph.view.getState(graph.getSelectionCell());

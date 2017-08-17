@@ -74,9 +74,6 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 	
 	PrintDialog.previewEnabled = false;
 	
-	// Enables PDF export via print
-	EditorUi.prototype.printPdfExport = true;
-	
 	var menusInit = Menus.prototype.init;
 	Menus.prototype.init = function()
 	{
@@ -90,7 +87,9 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 			this.addMenuItems(menu, ['new', 'open', '-', 'save', 'saveAs', '-', 'import'], parent);
 			this.addSubmenu('exportAs', menu, parent);
 			this.addSubmenu('embed', menu, parent);
-			this.addMenuItems(menu, ['-', 'newLibrary', 'openLibrary', '-', 'documentProperties', 'print'], parent);
+			this.addMenuItems(menu, ['-', 'newLibrary', 'openLibrary', '-', 'documentProperties',
+									'print', '-', 'close'], parent);
+			// LATER: Find API for application.quit
 		})));
 		
 		this.put('extras', new Menu(mxUtils.bind(this, function(menu, parent)
@@ -143,16 +142,16 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 			           
 		        if (paths !== undefined && paths[0] != null)
 		        {
-		        	var fs = require('fs');
 		        	var path = paths[0];
-		        	var index = path.lastIndexOf('.png');
-		        	var isPng = index > -1 && index == path.length - 4;
-		        	var encoding = (isPng || /\.gif$/i.test(path) || /\.jpe?g$/i.test(path) ||
-		        		/\.vsdx$/i.test(path)) ? 'base64' : 'utf-8'
+		        	var asImage = /\.png$/i.test(path) || /\.gif$/i.test(path) || /\.jpe?g$/i.test(path);
+		        	var encoding = (asImage || /\.vsdx$/i.test(path) || /\.vssx$/i.test(path)) ?
+		        		'base64' : 'utf-8';
 
 					if (editorUi.spinner.spin(document.body, mxResources.get('loading')))
 					{
-			        	fs.readFile(path, encoding, mxUtils.bind(this, function (e, data)
+			        	var fs = require('fs');
+
+						fs.readFile(path, encoding, mxUtils.bind(this, function (e, data)
 			        	{
 			        		if (e)
 			        		{
@@ -163,53 +162,116 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 			        		{
 								try
 								{
-									if (isPng)
+									if (data.substring(0, 26) == '{"state":"{\\"Properties\\":')
 									{
-										var tmp = editorUi.extractGraphModelFromPng(data);
-										
-										if (tmp != null)
+										editorUi.importLucidChart(data, 0, 0, null, function()
 										{
-											data = tmp;
-										}
+											editorUi.spinner.stop();
+										});
 									}
-									
-									if (!editorUi.isOffline() && new XMLHttpRequest().upload && editorUi.isRemoteFileFormat(data, path))
+									else
 									{
-										// Asynchronous parsing via server
-										editorUi.parseFile(editorUi.base64ToBlob(data, 'application/octet-stream'), mxUtils.bind(this, function(xhr)
+										if (/\.png$/i.test(path))
 										{
-											if (xhr.readyState == 4)
+											var tmp = editorUi.extractGraphModelFromPng(data);
+											
+											if (tmp != null)
 											{
-												editorUi.spinner.stop();
-												
-												if (xhr.status >= 200 && xhr.status <= 299)
-												{
-													
-													editorUi.editor.graph.setSelectionCells(editorUi.insertTextAt(xhr.responseText, 0, 0, true));
-												}
+												asImage = false;
+												data = tmp;
 											}
-										}), path);
-									}
-									else if (isPng || /\.gif$/i.test(path) || /\.jpe?g$/i.test(path))
-									{
-										var img = new Image();
-										img.onload = function()
+										}
+										else if (/\.svg$/i.test(path))
+						    			{
+											// LATER: Use importXml without throwing exception if no data
+						    				// Checks if SVG contains content attribute
+					    					var root = mxUtils.parseXml(data);
+				    						var svgs = root.getElementsByTagName('svg');
+				    						
+				    						if (svgs.length > 0)
+					    					{
+				    							var svgRoot = svgs[0];
+						    					var cont = svgRoot.getAttribute('content');
+		
+						    					if (cont != null && cont.charAt(0) != '<' && cont.charAt(0) != '%')
+						    					{
+						    						cont = unescape((window.atob) ? atob(cont) : Base64.decode(cont, true));
+						    					}
+						    					
+						    					if (cont != null && cont.charAt(0) == '%')
+						    					{
+						    						cont = decodeURIComponent(cont);
+						    					}
+		
+						    					if (cont != null && (cont.substring(0, 8) === '<mxfile ' ||
+						    						cont.substring(0, 14) === '<mxGraphModel '))
+						    					{
+						    						asImage = false;
+						    						data = cont;
+						    					}
+						    					else
+						    					{
+						    						asImage = true;
+						    						data = btoa(data);
+						    					}
+					    					}
+						    			}
+										else if (!editorUi.isOffline() && new XMLHttpRequest().upload && editorUi.isRemoteFileFormat(data, path))
 										{
-											editorUi.resizeImage(img, img.src, function(data2, w, h)
+											// Asynchronous parsing via server
+											editorUi.parseFile(editorUi.base64ToBlob(data, 'application/octet-stream'), mxUtils.bind(this, function(xhr)
+											{
+												if (xhr.readyState == 4)
+												{
+													editorUi.spinner.stop();
+													
+													if (xhr.status >= 200 && xhr.status <= 299)
+													{
+														
+														editorUi.editor.graph.setSelectionCells(editorUi.insertTextAt(xhr.responseText, 0, 0, true));
+													}
+												}
+											}), path);
+										}
+										
+										if (asImage)
+										{
+											var img = new Image();
+											img.onload = function()
+											{
+												editorUi.resizeImage(img, img.src, function(data2, w, h)
+												{
+													editorUi.spinner.stop();
+													var pt = graph.getInsertPoint();
+													graph.setSelectionCell(graph.insertVertex(null, null, '', pt.x, pt.y, w, h,
+														'shape=image;aspect=fixed;image=' + editorUi.convertDataUri(data2) + ';'));
+												}, true);
+											};
+											
+											img.onerror = function(e)
 											{
 												editorUi.spinner.stop();
-												var pt = graph.getInsertPoint();
-												graph.setSelectionCell(graph.insertVertex(null, null, '', pt.x, pt.y, w, h,
-													'shape=image;aspect=fixed;image=' + editorUi.convertDataUri(data2) + ';'));
-											}, true);
-										};
-										
-										img.src = 'data:image/png;base64,' + data;
-									}
-									else if (data != null)
-									{
-										editorUi.spinner.stop();
-										graph.setSelectionCells(editorUi.importXml(data));
+												editorUi.handleError();
+											};
+											
+											var format = path.substring(path.lastIndexOf('.') + 1);
+											
+											if (format == 'svg')
+											{
+												format = 'svg+xml';
+											}
+											
+											img.src = 'data:image/' + format + ';base64,' + data;
+										}
+										else
+										{
+											editorUi.spinner.stop();
+											
+											if (data != null)
+											{
+												graph.setSelectionCells(editorUi.importXml(data));
+											}
+										}
 									}
 								}
 								catch(e)
@@ -229,8 +291,6 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 		
 		this.actions.addAction('new...', mxUtils.bind(this, function()
 		{
-			mxLog.debug(this.getCurrentFile());
-
 			if (this.getCurrentFile() == null)
 			{
 				oldNew();
@@ -704,32 +764,94 @@ FeedbackDialog.feedbackUrl = 'https://log.draw.io/email';
 		}
 	};
 	
+	EditorUi.prototype.saveLocalFile = function(data, filename, mimeType, base64Encoded, format, allowBrowser)
+	{
+		this.saveData(filename, format, data, mimeType, base64Encoded);
+	};
+	
+	EditorUi.prototype.saveRequest = function(filename, format, fn, data, base64Encoded, mimeType)
+	{
+		var xhr = fn(null, '1');
+		
+		if (xhr != null && this.spinner.spin(document.body, mxResources.get('saving')))
+		{
+			xhr.send(mxUtils.bind(this, function()
+			{
+				this.spinner.stop();
+				
+				if (xhr.getStatus() >= 200 && xhr.getStatus() <= 299)
+				{
+					this.saveData(filename, format, xhr.getText(), mimeType, true);
+				}
+				else
+				{
+					this.handleError({message: mxResources.get('errorSavingFile')});
+				}
+			}), function(resp)
+			{
+				this.spinner.stop();
+				this.handleError(resp);
+			});
+		}
+	};
+	
 	EditorUi.prototype.saveData = function(filename, format, data, mimeType, base64Encoded)
 	{
 		const electron = require('electron');
 		var remote = electron.remote;
 		var dialog = remote.dialog;
-
-        var path = dialog.showSaveDialog({defaultPath: filename});
-
-        if (path != null)
-        {
-			this.fileObject = new Object();
-			this.fileObject.path = path;
-			this.fileObject.name = path.replace(/^.*[\\\/]/, '');
-			var isImage = mimeType != null && mimeType.startsWith('image');
-			this.fileObject.type = base64Encoded ? 'base64' : 'utf-8';
-			var fs = require('fs');
-			
-			fs.writeFile(this.fileObject.path, data, this.fileObject.type, mxUtils.bind(this, function (e)
-		    {
-				if (e)
-				{
-					this.handleError({message: mxResources.get('errorSavingFile')});
-				}
-        	}));
-		}
-	};
+		var resume = (this.spinner != null && this.spinner.pause != null) ? this.spinner.pause() : function() {};
+		
+		// Spinner.stop is asynchronous so we must invoke save dialog asynchronously
+		// to give the spinner some time to stop spinning
+		window.setTimeout(mxUtils.bind(this, function()
+		{
+			var path = dialog.showSaveDialog({defaultPath: filename});
 	
+	        if (path != null)
+	        {
+				var fs = require('fs');
+				resume();
+				
+				var fileObject = new Object();
+				fileObject.path = path;
+				fileObject.name = path.replace(/^.*[\\\/]/, '');
+				fileObject.type = (base64Encoded) ? 'base64' : 'utf-8';
+				
+				fs.writeFile(fileObject.path, data, fileObject.type, mxUtils.bind(this, function (e)
+			    {
+					this.spinner.stop();
+					
+					if (e)
+					{
+						this.handleError({message: mxResources.get('errorSavingFile')});
+					}
+	        		}));
+			}
+		}), 0);
+	};
+
+	EditorUi.prototype.createImageUrlConverter = function()
+	{
+		var converter = new mxUrlConverter();
+		converter.updateBaseUrl();
+		
+		return converter;
+	};
+
+	// Adds file: protocol as absolute URL for images
+	var mxUrlConverterIsRelativeUrl = mxUrlConverter.prototype.isRelativeUrl;
+	
+	mxUrlConverter.prototype.isRelativeUrl = function(url)
+	{
+		return url.substring(0, 7) !== 'file://' && mxUrlConverterIsRelativeUrl.apply(this, arguments);
+	};
+		
+	// Disables proxy for all images
+	EditorUi.prototype.isCorsEnabledForUrl = function()
+	{
+		return true;
+	}
+
 	EditorUi.prototype.addBeforeUnloadListener = function() {};
 })();

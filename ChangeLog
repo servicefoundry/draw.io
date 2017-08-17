@@ -1,3 +1,183 @@
+17-AUG-2017: 7.1.6
+
+- Improvements for Lucidchart import
+- Uses mxGraph 3.7.5 beta 11
+- Fixes possible NPE in custom handles
+
+17-AUG-2017: 7.1.5
+
+- Uses mxGraph 3.7.5 beta 10
+- Fixes custom handle positions for turned shapes
+- Fixes image export for clipart in Electron App
+- Adds close in file menu for Electron/Chrome App
+- Repositions inline dialogs if window is resized
+- Removes indirection for saving PDF in Electron App
+- Adds export in library dialog for Chrome App
+
+16-AUG-2017: 7.1.4
+
+- Adds footer for Desktop Apps Facebook post
+
+16-AUG-2017: 7.1.3
+
+- Uses mxGraph 3.7.5 beta 9
+- Uses retina icons for social media footers
+
+16-AUG-2017: 7.1.2
+
+- Fixes possible NPE in mxShapeBasicRectCallout shape
+
+16-AUG-2017: 7.1.1
+
+- Disables drafts in Confluence Cloud add-on
+- Uses mxGraph 3.7.5 beta 9
+- Fixes label positions, adds callout shape in general sidebar
+
+14-AUG-2017: 7.1.0
+
+- Improves Lucidchart import
+- Improves Gliffy import
+- Uses mxGraph 3.7.5 beta 8
+- Fixes ignored horizontal/vertical flip for connection points
+
+11-AUG-2017: 7.0.9
+
+- Fixes path to clipart images for SVG export in Chrome App
+- Adds perimeter for parallelogram, trapezoid, step and hexagon
+
+11-AUG-2017: 7.0.8
+
+- Fixes error handling in Confluence Cloud add-on
+
+10-AUG-2017: 7.0.7
+
+- Adds anonymize plugin (p=anon)
+
+09-AUG-2017: 7.0.6
+
+- Conf Cloud license changes
+- Fixes for Perimeters
+
+09-AUG-2017: 7.0.5
+
+- Uses mxGraph 3.7.5 beta 7
+- Fixes pen events for Chrome on Windows
+- Adds preview for clipboard in save image dialog
+- Enables drafts in Confluence Cloud add-on
+
+08-AUG-2017: 7.0.4
+
+- Improvements to Gliffy import
+- Fixes remember option for image resize dialog
+
+07-AUG-2017: 7.0.3
+
+- Adds cropping for data URIs in edit image dialog
+- Uses mxGraph 3.7.5 beta 6
+- Adds filled edge shape in basic sidebar
+- Fixes possible NPE, undefined function in Lucidchart Import
+- Fixes error handling in PlantUML add-on
+
+06-AUG-2017: 7.0.2
+
+- Improvements to Gliffy import
+- Uses filename for print preview title
+
+04-AUG-2017: 7.0.1
+
+- Improvements to Gliffy import
+- Improvements to Lucidchart import
+- Fixes PlantUML macro dialog
+
+03-AUG-2017: 7.0.0
+
+- Improvements to Gliffy import
+- Improvements to Lucidchart import 
+- Sent semantic versioning on holiday
+
+02-AUG-2017: 6.9.9
+
+- Fixes paste from Lucidchart
+
+31-JUL-2017: 6.9.8
+
+- Gliffy import improvements
+
+27-JUL-2017: 6.9.7
+
+- Adds links to reviews in free add-ons
+- Fixes preview in PlantUML add-on
+
+26-JUL-2017: 6.9.6
+
+- Switches to Google Cloud SDK
+- Adds fishbone diagram templates in business section
+
+24-JUL-2017: 6.9.5
+
+- Fixes anchor links in lightbox for viewer
+- Fixes event state for page links in labels
+
+24-JUL-2017: 6.9.4
+
+- Fixes hyperlinks in viewer
+
+24-JUL-2017: 6.9.3
+
+- Uses mxGraph 3.7.5 beta 5
+- Add experimental support for bridges in dev mode only
+
+24-JUL-2017: 6.9.2
+
+- Add experimental support for bridges
+- Adds fixes to VSDX export
+- Minor UI fixes
+
+19-JUL-2017: 6.9.1
+
+- Adds open button for spreadsheets, videos, photos, maps in GDriveConnector
+- Fixes import of multiple pages in Lucidchart files
+
+18-JUL-2017: 6.9.0
+
+- Adds import tile in splash screen
+- Adds social media sharing in footer
+- Uses mxGraph 3.7.5 beta 4
+- Fixes Extras, Tags and Autosave in Embed mode
+
+18-JUL-2017: 6.8.18
+
+- Ctrl+drop for images shows size dialog to reset default
+- Adds dialog before unloading modified page in embed mode
+
+17-JUL-2017: 6.8.17
+
+- Adds dialog for importing large images
+- Fixes sorting of properties in metadata dialog for IE 11
+- Fixes handling of lineHeight in IE 11
+
+16-JUL-2017: 6.8.16
+
+- Makes ref optional in value dialog for GitHub
+- Adds undoable background color, image and page format changes
+- Uses mxGraph 3.7.5 beta 3
+
+12-JUL-2017: 6.8.15
+
+- Fixes deleted transparent labels with spaces
+- Enables resize of containers with stack layout
+- Adds links option in Confluence Cloud add-on
+
+11-JUL-2017: 6.8.14
+
+- Fixes VSDX export for non-numeric IDs
+- Fixes drag and drop to splash screen
+
+10-JUL-2017: 6.8.13
+
+- Adds Alt+Click to select cells behind cells
+- Uses mxGraph 3.7.5 beta 2
+
 07-JUL-2017: 6.8.12
 
 - Updated translations

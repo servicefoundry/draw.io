@@ -428,6 +428,17 @@ Sidebar.prototype.hideTooltip = function()
 /**
  * Hides the current tooltip.
  */
+Sidebar.prototype.addDataEntry = function(tags, width, height, title, data)
+{
+	return this.addEntry(tags, mxUtils.bind(this, function()
+	{
+	   	return this.createVertexTemplateFromData(data, width, height, title);
+	}));
+};
+
+/**
+ * Hides the current tooltip.
+ */
 Sidebar.prototype.addEntry = function(tags, fn)
 {
 	if (this.taglist != null && tags != null && tags.length > 0)
@@ -923,25 +934,25 @@ Sidebar.prototype.addGeneralPalette = function(expand)
 		this.createVertexTemplateEntry('ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;aspect=fixed;', 80, 80, '', 'Double Circle', null, null, 'double circle'),
 	 	this.createVertexTemplateEntry('shape=process;whiteSpace=wrap;html=1;', 120, 60, '', 'Process', null, null, 'process task'),
 	 	this.createVertexTemplateEntry('rhombus;whiteSpace=wrap;html=1;', 80, 80, '', 'Diamond', null, null, 'diamond rhombus if condition decision conditional question test'),
-	 	this.createVertexTemplateEntry('shape=parallelogram;whiteSpace=wrap;html=1;', 120, 60, '', 'Parallelogram'),
-	 	this.createVertexTemplateEntry('shape=hexagon;perimeter=hexagonPerimeter;whiteSpace=wrap;html=1;', 120, 80, '', 'Hexagon', null, null, 'hexagon preparation'),
+	 	this.createVertexTemplateEntry('shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;', 120, 60, '', 'Parallelogram'),
+	 	this.createVertexTemplateEntry('shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;', 120, 80, '', 'Hexagon', null, null, 'hexagon preparation'),
 	 	this.createVertexTemplateEntry('triangle;whiteSpace=wrap;html=1;', 60, 80, '', 'Triangle', null, null, 'triangle logic inverter buffer'),
-	 	this.createVertexTemplateEntry('shape=cylinder;whiteSpace=wrap;html=1;', 60, 80, '', 'Cylinder', null, null, 'cylinder data database'),
+	 	this.createVertexTemplateEntry('shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;', 60, 80, '', 'Cylinder', null, null, 'cylinder data database'),
 	 	this.createVertexTemplateEntry('ellipse;shape=cloud;whiteSpace=wrap;html=1;', 120, 80, '', 'Cloud', null, null, 'cloud network'),
-	 	this.createVertexTemplateEntry('shape=document;whiteSpace=wrap;html=1;', 120, 80, '', 'Document'),
+	 	this.createVertexTemplateEntry('shape=document;whiteSpace=wrap;html=1;boundedLbl=1;', 120, 80, '', 'Document'),
 	 	this.createVertexTemplateEntry('shape=internalStorage;whiteSpace=wrap;html=1;', 80, 80, '', 'Internal Storage'),
-	 	this.createVertexTemplateEntry('shape=cube;whiteSpace=wrap;html=1;', 120, 80, '', 'Cube'),
-	 	this.createVertexTemplateEntry('shape=step;whiteSpace=wrap;html=1;', 120, 80, '', 'Step'),
-	 	this.createVertexTemplateEntry('shape=trapezoid;whiteSpace=wrap;html=1;', 120, 60, '', 'Trapezoid'),
+	 	this.createVertexTemplateEntry('shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;', 120, 80, '', 'Cube'),
+	 	this.createVertexTemplateEntry('shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;', 120, 80, '', 'Step'),
+	 	this.createVertexTemplateEntry('shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;html=1;', 120, 60, '', 'Trapezoid'),
 	 	this.createVertexTemplateEntry('shape=tape;whiteSpace=wrap;html=1;', 120, 100, '', 'Tape'),
 	 	this.createVertexTemplateEntry('shape=note;whiteSpace=wrap;html=1;', 80, 100, '', 'Note'),
 	    this.createVertexTemplateEntry('shape=card;whiteSpace=wrap;html=1;', 80, 100, '', 'Card'),
-	 	this.createEdgeTemplateEntry('endArrow=classic;html=1;', 50, 50, '', 'Directional Connector', null, lineTags + 'directional directed'),
-	    this.createEdgeTemplateEntry('endArrow=none;html=1;dashed=1;dashPattern=1 4;', 50, 50, '', 'Dotted Line', null, lineTags + 'dotted undirected no'),
+	    this.createVertexTemplateEntry('shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;', 120, 80, '', 'Callout'),
 	 	this.createEdgeTemplateEntry('endArrow=none;dashed=1;html=1;', 50, 50, '', 'Dashed Line', null, lineTags + 'dashed undirected no'),
 	 	this.createEdgeTemplateEntry('endArrow=none;html=1;', 50, 50, '', 'Line', null, lineTags + 'simple undirected plain blank no'),
-	 	this.createEdgeTemplateEntry('endArrow=classic;startArrow=classic;html=1;', 50, 50, '', 'Bidirectional Connector', null, lineTags + 'bidirectional')
-	 ];
+	 	this.createEdgeTemplateEntry('endArrow=classic;startArrow=classic;html=1;', 50, 50, '', 'Bidirectional Connector', null, lineTags + 'bidirectional'),
+	 	this.createEdgeTemplateEntry('endArrow=classic;html=1;', 50, 50, '', 'Directional Connector', null, lineTags + 'directional directed')
+	];
 	
 	this.addPaletteFunctions('general', mxResources.get('general'), (expand != null) ? expand : true, fns);
 };
@@ -954,10 +965,14 @@ Sidebar.prototype.addBasicPalette = function(dir)
 	this.addStencilPalette('basic', mxResources.get('basic'), dir + '/basic.xml',
 		';whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2',
 		null, null, null, null, [
-		this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
-		this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;top=0;bottom=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
-		this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;top=0;fillColor=none;routingCenterY=0.5;', 120, 60, '', 'Partial Rectangle'),
-		this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;right=0;top=0;bottom=0;fillColor=none;routingCenterX=-0.5;', 120, 60, '', 'Partial Rectangle')
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;top=0;bottom=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;top=0;fillColor=none;routingCenterY=0.5;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;right=0;top=0;bottom=0;fillColor=none;routingCenterX=-0.5;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;right=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;top=0;left=0;fillColor=none;', 120, 60, '', 'Partial Rectangle'),
+			this.createVertexTemplateEntry('shape=partialRectangle;whiteSpace=wrap;html=1;bottom=1;right=1;top=0;bottom=1;fillColor=none;routingCenterX=-0.5;', 120, 60, '', 'Partial Rectangle'),
+		 	this.createEdgeTemplateEntry('shape=filledEdge;rounded=0;fixDash=1;endArrow=none;strokeWidth=10;fillColor=#ffffff;edgeStyle=orthogonalEdgeStyle;', 120, 60, '', 'Filled Edge')
 	]);
 };
 
@@ -1115,7 +1130,8 @@ Sidebar.prototype.createAdvancedShapes = function()
 		this.addEntry('list', function()
 		{
 			var cell = new mxCell('List', new mxGeometry(0, 0, 140, 110),
-		    	'swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
+		    	'swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;' +
+		    	'resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
 			cell.vertex = true;
 			cell.insert(sb.cloneCell(field, 'Item 1'));
 			cell.insert(sb.cloneCell(field, 'Item 2'));
@@ -1154,7 +1170,7 @@ Sidebar.prototype.addUmlPalette = function(expand)
 	 	this.addEntry(dt + 'object instance', function()
 		{
 			var cell = new mxCell('Classname', new mxGeometry(0, 0, 160, 90),
-		    	'swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
+		    	'swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
 			cell.vertex = true;
 			cell.insert(field.clone());
 			cell.insert(divider.clone());
@@ -1165,7 +1181,7 @@ Sidebar.prototype.addUmlPalette = function(expand)
 		this.addEntry(dt + 'section subsection', function()
 		{
 			var cell = new mxCell('Classname', new mxGeometry(0, 0, 140, 110),
-		    	'swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
+		    	'swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;swimlaneFillColor=#ffffff;');
 			cell.vertex = true;
 			cell.insert(field.clone());
 			cell.insert(field.clone());
@@ -3075,7 +3091,7 @@ Sidebar.prototype.itemClicked = function(cells, ds, evt, elt)
 		var pt = graph.getFreeInsertPoint();
 		ds.drop(graph, evt, null, pt.x, pt.y);
 		
-		if (this.editorUi.hoverIcons != null && mxEvent.isTouchEvent(evt))
+		if (this.editorUi.hoverIcons != null && (mxEvent.isTouchEvent(evt) || mxEvent.isPenEvent(evt)))
 		{
 			this.editorUi.hoverIcons.update(graph.view.getState(graph.getSelectionCell()));
 		}

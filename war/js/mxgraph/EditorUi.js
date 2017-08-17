@@ -320,7 +320,14 @@ EditorUi = function(editor, container, lightbox)
 	// Workaround for page scroll if embedded via iframe
 	if (window.self === window.top && graph.container.parentNode != null)
 	{
-		graph.container.focus();
+		try
+		{
+			graph.container.focus();
+		}
+		catch (e)
+		{
+			// ignores error in old versions of IE
+		}
 	}
 
    	// Keeps graph container focused on mouse down
@@ -931,10 +938,10 @@ EditorUi.prototype.sidebarFooterHeight = 34;
 EditorUi.prototype.editButtonLink = null;
 
 /**
- * Specifies the position of the horizontal split bar. Default is 204 or 120 for
- * screen widths <= 500px.
+ * Specifies the position of the horizontal split bar. Default is 208 or 118 for
+ * screen widths <= 640px.
  */
-EditorUi.prototype.hsplitPosition = (screen.width <= 640) ? ((screen.width <= 360) ? 62 : 116) : 208;
+EditorUi.prototype.hsplitPosition = (screen.width <= 640) ? 118 : 208;
 
 /**
  * Specifies if animations are allowed in <executeLayout>. Default is true.
@@ -1637,8 +1644,8 @@ EditorUi.prototype.initCanvas = function()
 				mxEvent.consume(evt);
 			}), Editor.editLargeImage, mxResources.get('openInNewWindow'));
 		}
-
-		if (graph.lightbox && this.container != document.body)
+		
+		if (graph.lightbox && (urlParams['close'] == '1' || this.container != document.body))
 		{
 			addButton(mxUtils.bind(this, function(evt)
 			{
@@ -2395,6 +2402,55 @@ EditorUi.prototype.setPageVisible = function(value)
 	}
 	
 	this.fireEvent(new mxEventObject('pageViewChanged'));
+};
+
+/**
+ * Change types
+ */
+function ChangePageSetup(ui, color, image, format)
+{
+	this.ui = ui;
+	this.previousColor = color;
+	this.previousImage = image;
+	this.previousFormat = format;
+	
+	// Needed since null are valid values for color and image
+	this.ignoreColor = false;
+	this.ignoreImage = false;
+}
+
+/**
+ * Implementation of the undoable page rename.
+ */
+ChangePageSetup.prototype.execute = function()
+{
+	var graph = this.ui.editor.graph;
+	
+	if (!this.ignoreColor)
+	{
+		var tmp = graph.background;
+		this.ui.setBackgroundColor(this.previousColor);
+		this.previousColor = tmp;
+	}
+	
+	if (!this.ignoreImage)
+	{
+		var tmp = graph.backgroundImage;
+		this.ui.setBackgroundImage(this.previousImage);
+		this.previousImage = tmp;
+	}
+	
+	if (this.previousFormat != null)
+	{
+		var tmp = graph.pageFormat;
+		
+		if (this.previousFormat.width != tmp.width ||
+			this.previousFormat.height != tmp.height)
+		{
+			this.ui.setPageFormat(this.previousFormat);
+			this.previousFormat = tmp;
+		}
+	}
 };
 
 /**
@@ -3390,8 +3446,12 @@ EditorUi.prototype.showBackgroundImageDialog = function(apply)
 {
 	apply = (apply != null) ? apply : mxUtils.bind(this, function(image)
 	{
-		this.setBackgroundImage(image);
+		var change = new ChangeGraphBackground(this, null, image);
+		change.ignoreColor = true;
+		
+		this.editor.graph.model.execute(change);
 	});
+	
 	var newValue = mxUtils.prompt(mxResources.get('backgroundImage'), '');
 	
 	if (newValue != null && newValue.length > 0)

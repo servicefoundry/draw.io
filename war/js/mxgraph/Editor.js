@@ -703,6 +703,9 @@ function Dialog(editorUi, elt, w, h, modal, closable, onClose)
 	w += dx;
 	h += dx;
 	
+	var w0 = w;
+	var h0 = h;
+	
 	var dh = Math.max(document.body.clientHeight, document.documentElement.clientHeight);
 	var left = Math.max(1, Math.round((document.body.clientWidth - w - 64) / 2));
 	var top = Math.max(1, Math.round((dh - h - editorUi.footerHeight) / 3));
@@ -791,6 +794,41 @@ function Dialog(editorUi, elt, w, h, modal, closable, onClose)
 		}));
 	}
 	
+	this.resizeListener = mxUtils.bind(this, function()
+	{
+		dh = Math.max(document.body.clientHeight, document.documentElement.clientHeight);
+		this.bg.style.height = dh + 'px';
+		
+		left = Math.max(1, Math.round((document.body.clientWidth - w - 64) / 2));
+		top = Math.max(1, Math.round((dh - h - editorUi.footerHeight) / 3));
+	
+		div.style.left = left + 'px';
+		div.style.top = top + 'px';
+		
+		w = Math.min(w0, document.body.scrollWidth - 64);
+		h = Math.min(h0, dh - 64);
+		
+		div.style.width = w + 'px';
+		div.style.height = h + 'px';
+		
+		if (h0 > dh - 64)
+		{
+			elt.style.overflowY = 'auto';
+		}
+		else
+		{
+			elt.style.overflowY = '';
+		}
+		
+		if (this.dialogImg != null)
+		{
+			this.dialogImg.style.top = (top + 14) + 'px';
+			this.dialogImg.style.left = (left + w + 38 - dx) + 'px';
+		}
+	});
+	
+	mxEvent.addListener(window, 'resize', this.resizeListener);
+
 	this.onDialogClose = onClose;
 	this.container = div;
 	
@@ -854,6 +892,7 @@ Dialog.prototype.close = function(cancel)
 		this.bg.parentNode.removeChild(this.bg);
 	}
 	
+	mxEvent.removeListener(window, 'resize', this.resizeListener);
 	this.container.parentNode.removeChild(this.container);
 };
 
@@ -1319,21 +1358,26 @@ var PageSetupDialog = function(editorUi)
 	var applyBtn = mxUtils.button(mxResources.get('apply'), function()
 	{
 		editorUi.hideDialog();
-		editorUi.setPageFormat(accessor.get());
-		
-		if (graph.background != newBackgroundColor)
-		{
-			editorUi.setBackgroundColor(newBackgroundColor);
-		}
-		
-		if (graph.backgroundImage !== newBackgroundImage)
-		{
-			editorUi.setBackgroundImage(newBackgroundImage);
-		}
 		
 		if (graph.gridSize !== gridSizeInput.value)
 		{
 			graph.setGridSize(parseInt(gridSizeInput.value));
+		}
+
+		var change = new ChangePageSetup(editorUi, newBackgroundColor,
+			newBackgroundImage, accessor.get());
+		change.ignoreColor = graph.background == newBackgroundColor;
+		
+		var oldSrc = (graph.backgroundImage != null) ? graph.backgroundImage.src : null;
+		var newSrc = (newBackgroundImage != null) ? newBackgroundImage.src : null;
+		
+		change.ignoreImage = oldSrc === newSrc;
+
+		if (graph.pageFormat.width != change.previousFormat.width ||
+			graph.pageFormat.height != change.previousFormat.height ||
+			!change.ignoreColor || !change.ignoreImage)
+		{
+			graph.model.execute(change);
 		}
 	});
 	applyBtn.className = 'geBtn gePrimaryBtn';

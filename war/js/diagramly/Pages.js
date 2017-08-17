@@ -17,8 +17,9 @@ function DiagramPage(node)
 {
 	this.node = node;
 	
-	// Create GUID for page
-	if (!this.node.hasAttribute('id'))
+	// Create GUID for page (first part is workaround for old versions of IE)
+	if ((this.node.hasAttribute == null && this.node.getAttribute('id') == null) ||
+		(this.node.hasAttribute != null && !this.node.hasAttribute('id')))
 	{
 		// Make global if used anywhere else
 		function guid()
@@ -601,9 +602,11 @@ EditorUi.prototype.updatePageRoot = function(page)
 /**
  * Returns true if the given string contains an mxfile.
  */
-EditorUi.prototype.selectPage = function(page)
+EditorUi.prototype.selectPage = function(page, quiet)
 {
-	this.editor.graph.stopEditing();
+	quiet = (quiet != null) ? quiet : false;
+	this.editor.graph.isMouseDown = false;
+	this.editor.graph.reset();
 	
 	var edit = this.editor.graph.model.createUndoableEdit();
 	
@@ -615,7 +618,10 @@ EditorUi.prototype.selectPage = function(page)
 	edit.add(change);
 	edit.notify();
 	
-	this.editor.graph.model.fireEvent(new mxEventObject(mxEvent.UNDO, 'edit', edit));
+	if (!quiet)
+	{
+		this.editor.graph.model.fireEvent(new mxEventObject(mxEvent.UNDO, 'edit', edit));
+	}
 };
 
 /**

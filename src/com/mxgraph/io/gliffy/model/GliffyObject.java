@@ -2,12 +2,15 @@ package com.mxgraph.io.gliffy.model;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.mxgraph.io.gliffy.importer.PostDeserializer.PostDeserializable;
 import com.mxgraph.model.mxCell;
+import com.mxgraph.model.mxGeometry;
 
 /**
  * Class representing Gliffy diagram object
@@ -20,6 +23,8 @@ public class GliffyObject implements PostDeserializable
 	private static Set<String> GROUP_SHAPES = new HashSet<String>();
 
 	private static Set<String> MINDMAP_SHAPES = new HashSet<>();
+	
+	private static Map<String, double[]> SHAPES_COORD_FIX = new HashMap<>();
 
 	public float x;
 
@@ -112,11 +117,42 @@ public class GliffyObject implements PostDeserializable
 		*/
 
 		GROUP_SHAPES.add("com.gliffy.shape.basic.basic_v1.default.group");
+		GROUP_SHAPES.add("com.gliffy.shape.erd.erd_v1.default.entity_with_attributes");
+		GROUP_SHAPES.add("com.gliffy.shape.erd.erd_v1.default.entity_with_multiple_attributes");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.interaction_use");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.opt_combined_fragment");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.loop_combined_fragment");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.alt_combined_fragment");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.object");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.enumeration");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.interface");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.class2");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.class");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.data_type");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.state_machine.composite_state");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.state_machine.orthoganal_state");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.class.package");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.boundary_lifeline");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.lifeline");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.entity_lifeline");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v2.sequence.control_lifeline");
+		GROUP_SHAPES.add("com.gliffy.shape.ui.ui_v3.containers_content.speech_bubble_right");
+		GROUP_SHAPES.add("com.gliffy.shape.ui.ui_v3.containers_content.speech_bubble_left");
+		//UML V1
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v1.default.object_timeline");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v1.default.class");
+		GROUP_SHAPES.add("com.gliffy.shape.uml.uml_v1.default.object");
 
 		MINDMAP_SHAPES.add("com.gliffy.shape.mindmap.mindmap_v1.default.main_topic");
 		MINDMAP_SHAPES.add("com.gliffy.shape.mindmap.mindmap_v1.default.subtopic");
 		MINDMAP_SHAPES.add("com.gliffy.shape.mindmap.mindmap_v1.default.child_node");
 
+		
+		SHAPES_COORD_FIX.put("com.gliffy.shape.flowchart.flowchart_v1.default.paper_tape", new double[]{0, -0.1, 0, 0.2});
+		SHAPES_COORD_FIX.put("com.gliffy.shape.uml.uml_v1.default.node", new double[]{0, -10, 10, 10});
+		SHAPES_COORD_FIX.put("com.gliffy.shape.uml.uml_v2.deployment.node", new double[]{0, -10, 10, 10});
+		SHAPES_COORD_FIX.put("com.gliffy.shape.uml.uml_v2.deployment.device_node", new double[]{0, -10, 10, 10});
+		SHAPES_COORD_FIX.put("com.gliffy.shape.uml.uml_v2.deployment.execution_environment_node", new double[]{0, -10, 10, 10});
 	}
 
 	public GliffyObject()
@@ -145,6 +181,11 @@ public class GliffyObject implements PostDeserializable
 	 */
 	public GliffyObject getTextObject()
 	{
+		return getTextObject(0, 0);
+	}
+	
+	private GliffyObject getTextObject(double x, double y)
+	{
 
 		if (isText())
 		{
@@ -159,11 +200,16 @@ public class GliffyObject implements PostDeserializable
 		{
 			if (child.getGraphic() != null && child.getGraphic().getType().equals(Graphic.Type.TEXT))
 			{
+				child.x += x;
+				child.y += y;
 				return child;
 			}
 			else
 			{
-				return child.getTextObject();
+				GliffyObject txtObj = child.getTextObject(child.x, child.y);
+				
+				if (txtObj != null)
+					return txtObj;
 			}
 		}
 
@@ -195,7 +241,9 @@ public class GliffyObject implements PostDeserializable
 
 	public boolean isGroup()
 	{
-		return uid != null && GROUP_SHAPES.contains(uid);
+		return (uid != null && (GROUP_SHAPES.contains(uid) || uid.startsWith("com.gliffy.shape.table")))
+				//Since we treat text in a different way (added as cell value instead of another child cell, this is probably the best way to detect groups when uid is null)
+				|| (uid == null && hasChildren() && !children.get(0).isText());
 	}
 
 	public boolean isMindmap()
@@ -291,7 +339,7 @@ public class GliffyObject implements PostDeserializable
 	 */
 	public boolean isSubRoutine()
 	{
-		return uid.equals("com.gliffy.shape.flowchart.flowchart_v1.default.subroutine");
+		return "com.gliffy.shape.flowchart.flowchart_v1.default.subroutine".equals(uid);
 	}
 
 	public boolean isUnrecognizedGraphicType()
@@ -371,6 +419,32 @@ public class GliffyObject implements PostDeserializable
 
 			for (GliffyObject child : children) //increase y 
 				child.y += -yMin;
+		}
+	}
+	
+	public void adjustGeo(mxGeometry geo)
+	{
+		double[] arr = SHAPES_COORD_FIX.get(uid);
+		
+		if (arr != null)
+		{
+			double x = geo.getX(), y = geo.getY(), w = geo.getWidth(), h = geo.getHeight();
+			
+			geo.setX(x + (Math.abs(arr[0]) < 1 ? w * arr[0]: arr[0]));
+			geo.setY(y + (Math.abs(arr[1]) < 1 ? h * arr[1]: arr[1]));
+			geo.setWidth(w + (Math.abs(arr[2]) < 1 ? w * arr[2]: arr[2]));
+			geo.setHeight(h + (Math.abs(arr[3]) < 1 ? h * arr[3]: arr[3]));
+		}
+	}
+
+	public void adjustTextPos(GliffyObject textObject) 
+	{
+		double[] arr = SHAPES_COORD_FIX.get(uid);
+		
+		if (arr != null)
+		{
+			textObject.x -= (Math.abs(arr[0]) < 1 ? width * arr[0]: arr[0]);
+			textObject.y -= (Math.abs(arr[1]) < 1 ? height * arr[1]: arr[1]);
 		}
 	}
 }

@@ -7,9 +7,6 @@ import com.mxgraph.io.gliffy.importer.PostDeserializer;
 
 public class GliffyText implements PostDeserializer.PostDeserializable
 {
-	//places the text in the middle of the line
-	public static Double DEFAULT_LINE_T_VALUE = 0.5; 
-	
 	private String html;
 
 	private String valign;
@@ -29,10 +26,14 @@ public class GliffyText implements PostDeserializer.PostDeserializable
 
 	private Integer paddingTop;
 	
-	public Double lineTValue = DEFAULT_LINE_T_VALUE;
+	public Double lineTValue = 0.5;//places the text in the middle of the line
 
 	public Integer linePerpValue;
 
+	public String overflow;
+	
+	private boolean forceTopPaddingShift = false;
+	
 	private static Pattern pattern = Pattern.compile("<p(.*?)<\\/p>");
 
 	private static Pattern textAlign = Pattern.compile(".*(text-align: ?(left|center|right);).*", Pattern.DOTALL);
@@ -57,10 +58,13 @@ public class GliffyText implements PostDeserializer.PostDeserializable
 	{
 	}
 
-	public String getStyle()
+	public String getStyle(float x, float y)
 	{
 		StringBuilder sb = new StringBuilder();
 
+		//I hate magic numbers, but -7 seams to fix all text top padding when valign is not middle 
+		int topPaddingShift = 7;
+		
 		//vertical label position
 		if (vposition.equals("above"))
 		{
@@ -75,6 +79,9 @@ public class GliffyText implements PostDeserializer.PostDeserializable
 		else if (vposition.equals("none"))
 		{
 			sb.append("verticalAlign=").append(valign).append(";");
+			
+			if (!forceTopPaddingShift && "middle".equals(valign))
+				topPaddingShift = 0;
 		}
 
 		if (hposition.equals("left"))
@@ -95,11 +102,19 @@ public class GliffyText implements PostDeserializer.PostDeserializable
 				sb.append("align=center;");
 		}
 
-		sb.append("spacingLeft=").append(paddingLeft).append(";");
+		sb.append("spacingLeft=").append(paddingLeft + x).append(";");
 		sb.append("spacingRight=").append(paddingRight).append(";");
-		sb.append("spacingTop=").append(paddingTop).append(";");
-		sb.append("spacingBottom=").append(paddingBottom).append(";");
+		
+		if (forceTopPaddingShift || !"middle".equals(valign))
+		{
+			sb.append("spacingTop=").append(paddingTop - topPaddingShift + y).append(";");
+			sb.append("spacingBottom=").append(paddingBottom).append(";");
+		}
 
+		//We should wrap only if overflow is none. (TODO better support left & right overflow) 
+		if ("none".equals(overflow))
+			sb.append("whiteSpace=wrap;");
+		
 		return sb.toString();
 	}
 
@@ -133,4 +148,13 @@ public class GliffyText implements PostDeserializer.PostDeserializable
 		return null;
 	}
 
+	public void setValign(String valign) 
+	{
+		this.valign = valign;
+	}
+
+	public void setForceTopPaddingShift(boolean forceTopPaddingShift) 
+	{
+		this.forceTopPaddingShift = forceTopPaddingShift;
+	}
 }
